@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'package:lottie/lottie.dart';
-
 import 'package:frontend/pages/login_page/login_page.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -11,15 +9,46 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen>
+    with TickerProviderStateMixin {
+  late final AnimationController _controller;
+  int _currentStep = 1;
+
   @override
   void initState() {
     super.initState();
-    Timer(const Duration(seconds: 5), () {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const LoginPage()),
-      ); // Ganti dengan halaman utama Anda
+
+    _controller = AnimationController(vsync: this);
+
+    _controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        if (_currentStep == 1) {
+          setState(() {
+            _currentStep = 2;
+          });
+          _controller.reset(); // siapkan untuk animasi berikutnya
+          // forward() akan dipanggil di onLoaded animasi kedua
+        } else if (_currentStep == 2) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const LoginPage()),
+          );
+        }
+      }
     });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  String get _currentAnimationAsset {
+    if (_currentStep == 1) {
+      return 'assets/animations/splash_screen1.json';
+    } else {
+      return 'assets/animations/splash_screen2.json';
+    }
   }
 
   @override
@@ -28,8 +57,12 @@ class _SplashScreenState extends State<SplashScreen> {
       backgroundColor: Colors.white,
       body: Center(
         child: Lottie.asset(
-          "assets/animations/splash_screen1.json",
-          frameRate: const FrameRate(60),
+          _currentAnimationAsset,
+          controller: _controller,
+          onLoaded: (composition) {
+            _controller.duration = composition.duration;
+            _controller.forward();
+          },
         ),
       ),
     );
