@@ -12,23 +12,27 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   late final AnimationController _controller;
-  int _currentStep = 1;
+  int _currentStep = 1; // Menandai animasi ke-1 atau ke-2
 
   @override
   void initState() {
     super.initState();
 
+    // Inisialisasi controller animasi untuk Lottie
     _controller = AnimationController(vsync: this);
 
+    // Menangani saat animasi selesai dimainkan
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         if (_currentStep == 1) {
+          // Setelah animasi pertama selesai, ganti ke animasi kedua
           setState(() {
             _currentStep = 2;
           });
-          _controller.reset(); // siapkan untuk animasi berikutnya
-          // forward() akan dipanggil di onLoaded animasi kedua
+          _controller.reset(); // Reset controller sebelum animasi berikutnya
+          // forward() akan dipanggil kembali di onLoaded animasi ke-2
         } else if (_currentStep == 2) {
+          // Setelah animasi kedua selesai, pindah ke halaman LoginPage
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) => const LoginPage()),
           );
@@ -38,11 +42,13 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   @override
+  //fungsi
   void dispose() {
-    _controller.dispose();
+    _controller.dispose(); // Hapus controller saat widget dibuang
     super.dispose();
   }
 
+  // Mendapatkan path file animasi berdasarkan step saat ini
   String get _currentAnimationAsset {
     if (_currentStep == 1) {
       return 'assets/animations/splash_screen1.json';
@@ -57,11 +63,13 @@ class _SplashScreenState extends State<SplashScreen>
       backgroundColor: Colors.white,
       body: Center(
         child: Lottie.asset(
-          _currentAnimationAsset,
-          controller: _controller,
+          _currentAnimationAsset, // Animasi berdasarkan step
+          controller: _controller, // Controller yang mengatur durasi & play
+          frameRate: FrameRate.max, // Mengatur frame rate maksimal (60 FPS)
           onLoaded: (composition) {
+            // Atur durasi controller berdasarkan durasi animasi
             _controller.duration = composition.duration;
-            _controller.forward();
+            _controller.forward(); // Mainkan animasi setelah durasi diketahui
           },
         ),
       ),
