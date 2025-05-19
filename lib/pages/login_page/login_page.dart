@@ -3,6 +3,7 @@ import 'package:frontend/models/pembeli_model.dart';
 import 'package:frontend/pages/admin_pages/main_admin.dart';
 import 'package:frontend/pages/karyawan_pages/main_karyawan.dart';
 import 'package:frontend/pages/pembeli_pages/main_pembeli.dart';
+import 'package:frontend/pages/register_page/register_page.dart';
 import 'package:toastification/toastification.dart';
 
 class LoginPage extends StatefulWidget {
@@ -15,341 +16,530 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   TextEditingController usernameController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
+  bool isPasswordVisible = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
-        // physics: const NeverScrollabljaeScrollPhysics(),
+        physics: const ClampingScrollPhysics(),
         child: Container(
           height: MediaQuery.of(context).size.height,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Colors.white, Colors.grey.shade50],
+            ),
+          ),
           child: Stack(
             children: [
-              // Decorative circles
+              // Modern geometric decorations
               Positioned(
-                top: -100,
+                top: -120,
                 right: -100,
+                child: Container(
+                  width: 250,
+                  height: 250,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.black.withOpacity(0.03),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: -80,
+                right: -180,
+                child: Container(
+                  width: 300,
+                  height: 300,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.black.withOpacity(0.02),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: -80,
+                left: -80,
                 child: Container(
                   width: 200,
                   height: 200,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.blue.withOpacity(0.1),
+                    color: Colors.black.withOpacity(0.03),
                   ),
                 ),
               ),
-              Positioned(
-                bottom: -50,
-                left: -50,
-                child: Container(
-                  width: 150,
-                  height: 150,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.blue.withOpacity(0.1),
-                  ),
-                ),
-              ),
+
               // Main content
               SafeArea(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.only(top: 150, bottom: 50),
-                      child: Column(
-                        children: [
-                          Image.asset("images/logo.png", width: 50),
-                          const SizedBox(height: 8),
-                          Column(
-                            children: [
-                              const Text(
-                                "SIGITA",
-                                style: TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue,
-                                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 30),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 60),
+                      // Logo section with subtle animation
+                      TweenAnimationBuilder(
+                        tween: Tween<double>(begin: 0.8, end: 1.0),
+                        duration: const Duration(seconds: 1),
+                        builder: (context, value, child) {
+                          return Transform.scale(
+                            scale: value,
+                            child: Center(
+                              child: Column(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(15),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.black.withOpacity(0.05),
+                                    ),
+                                    child: Image.asset(
+                                      "assets/images/logo.png",
+                                      width: 120,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  const Text(
+                                    "WIJAYA STORE",
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 2.0,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Container(
+                                    width: 40,
+                                    height: 3,
+                                    decoration: BoxDecoration(
+                                      color: Colors.black,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              Text(
-                                "Modul Keperawatan RSJ Sambang Lihum",
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.black.withOpacity(0.5),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                            ),
+                          );
+                        },
                       ),
-                    ),
-                    // Logo or app name could go here
-                    const SizedBox(height: 16),
-                    Container(
-                      // height: MediaQuery.of(context).size.height,
-                      padding: const EdgeInsets.symmetric(horizontal: 30),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            child: const Text(
+
+                      const SizedBox(height: 60),
+
+                      // Login form area
+                      Container(
+                        padding: const EdgeInsets.all(25),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.03),
+                              blurRadius: 20,
+                              spreadRadius: 5,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
                               "Login",
                               style: TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.blue,
+                                color: Colors.black,
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          // Enhanced text fields
-                          Container(
-                            height: 50,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: TextField(
-                              controller: usernameController,
-                              style: const TextStyle(fontSize: 14),
-                              decoration: InputDecoration(
-                                labelText: "Username",
-                                labelStyle: const TextStyle(fontSize: 14),
-                                prefixIcon: const Icon(
-                                  Icons.person_outlined,
-                                  size: 20,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide.none,
-                                ),
-                                filled: true,
-                                fillColor: Colors.white,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Container(
-                            height: 50,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: TextField(
-                              controller: passwordController,
-                              obscureText: true,
-                              style: const TextStyle(fontSize: 14),
-                              decoration: InputDecoration(
-                                labelText: "Password",
-                                labelStyle: const TextStyle(fontSize: 14),
-                                prefixIcon: const Icon(
-                                  Icons.lock_outline,
-                                  size: 20,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide.none,
-                                ),
-                                filled: true,
-                                fillColor: Colors.white,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 25),
-                          // Enhanced button
-                          Container(
-                            height: 50,
-                            width: MediaQuery.of(context).size.width,
-                            margin: const EdgeInsets.symmetric(horizontal: 20),
-                            child: ElevatedButton(
-                              onPressed: () async {
-                                if (usernameController.text.isNotEmpty &&
-                                    passwordController.text.isNotEmpty) {
-                                  try {
-                                    String? result =
-                                        await LoginAkunPembeli.loginAkunPembeli(
-                                          usernameController.text,
-                                          passwordController.text,
-                                        );
+                            const SizedBox(height: 30),
 
-                                    if (result == "admin") {
-                                      toastification.show(
-                                        context: context,
-                                        title: const Text("Login Berhasil"),
-                                        description: const Text(
-                                          "Selamat Datang Di SIGITA",
-                                        ),
-                                        type: ToastificationType.success,
-                                        style: ToastificationStyle.flat,
-                                        alignment: Alignment.topCenter,
-                                        autoCloseDuration: const Duration(
-                                          seconds: 5,
-                                        ),
-                                        icon: const Icon(Icons.check),
-                                      );
-                                      await Navigator.of(
-                                        context,
-                                      ).pushReplacement(
-                                        MaterialPageRoute(
-                                          builder:
-                                              (context) => const MainAdmin(),
-                                        ),
-                                      );
-                                    } else if (result == "pembeli") {
-                                      toastification.show(
-                                        context: context,
-                                        title: const Text("Login Berhasil"),
-                                        description: const Text(
-                                          "Selamat Datang Di SIGITA",
-                                        ),
-                                        type: ToastificationType.success,
-                                        style: ToastificationStyle.flat,
-                                        alignment: Alignment.topCenter,
-                                        autoCloseDuration: const Duration(
-                                          seconds: 5,
-                                        ),
-                                        icon: const Icon(Icons.check),
-                                      );
-                                      await Navigator.of(
-                                        context,
-                                      ).pushReplacement(
-                                        MaterialPageRoute(
-                                          builder:
-                                              (context) => const MainPembeli(),
-                                        ),
-                                      );
-                                    } else if (result == "karyawan") {
-                                      toastification.show(
-                                        context: context,
-                                        title: const Text("Login Berhasil"),
-                                        description: const Text(
-                                          "Selamat Datang Di SIGITA",
-                                        ),
-                                        type: ToastificationType.success,
-                                        style: ToastificationStyle.flat,
-                                        alignment: Alignment.topCenter,
-                                        autoCloseDuration: const Duration(
-                                          seconds: 5,
-                                        ),
-                                        icon: const Icon(Icons.check),
-                                      );
-                                      await Navigator.of(
-                                        context,
-                                      ).pushReplacement(
-                                        MaterialPageRoute(
-                                          builder:
-                                              (context) => const MainKaryawan(),
-                                        ),
-                                      );
-                                    } else {
-                                      toastification.show(
-                                        context: context,
-                                        title: const Text("Login Gagal"),
-                                        description: Text(result!),
-                                        type: ToastificationType.error,
-                                        style: ToastificationStyle.flat,
-                                        alignment: Alignment.topCenter,
-                                        autoCloseDuration: const Duration(
-                                          seconds: 5,
-                                        ),
-                                        icon: const Icon(Icons.error_outline),
-                                      );
-                                    }
-                                  } catch (e) {
-                                    toastification.show(
-                                      context: context,
-                                      title: const Text("Login Gagal"),
-                                      description: Text(
-                                        "Terjadi kesalahan: $e",
-                                      ),
-                                      type: ToastificationType.error,
-                                      style: ToastificationStyle.flat,
-                                      alignment: Alignment.topCenter,
-                                      autoCloseDuration: const Duration(
-                                        seconds: 5,
-                                      ),
-                                      icon: const Icon(Icons.error_outline),
-                                    );
-                                  }
-                                } else {
-                                  toastification.show(
-                                    context: context,
-                                    title: const Text("Login Gagal"),
-                                    description: const Text(
-                                      "Username dan Password tidak boleh kosong",
+                            // Modern text fields
+                            Theme(
+                              data: Theme.of(context).copyWith(
+                                inputDecorationTheme: InputDecorationTheme(
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                    borderSide: const BorderSide(
+                                      color: Colors.black,
+                                      width: 1.5,
                                     ),
-                                    type: ToastificationType.error,
-                                    style: ToastificationStyle.flat,
-                                    alignment: Alignment.topCenter,
-                                    autoCloseDuration: const Duration(
-                                      seconds: 5,
-                                    ),
-                                    icon: const Icon(Icons.error_outline),
-                                  );
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                backgroundColor: Colors.blue.shade600,
-                                elevation: 3,
-                                shadowColor: Colors.blue.withOpacity(0.5),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 32,
-                                  vertical: 16,
+                                  ),
                                 ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15),
-                                ),
-                                minimumSize: const Size(double.infinity, 55),
-                              ).copyWith(
-                                overlayColor: MaterialStateProperty.resolveWith<
-                                  Color?
-                                >((Set<MaterialState> states) {
-                                  if (states.contains(MaterialState.pressed)) {
-                                    return Colors
-                                        .blue
-                                        .shade700; // Warna saat ditekan
-                                  }
-                                  if (states.contains(MaterialState.hovered)) {
-                                    return Colors
-                                        .blue
-                                        .shade500; // Warna saat hover
-                                  }
-                                  return null;
-                                }),
                               ),
-                              child: const Text("Login"),
+                              child: TextField(
+                                controller: usernameController,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  color: Colors.black,
+                                ),
+                                decoration: InputDecoration(
+                                  labelText: "Username",
+                                  labelStyle: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade700,
+                                  ),
+                                  prefixIcon: Icon(
+                                    Icons.person_outline,
+                                    size: 20,
+                                    color: Colors.grey.shade800,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                    borderSide: BorderSide(
+                                      color: Colors.grey.shade300,
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                    borderSide: BorderSide(
+                                      color: Colors.grey.shade200,
+                                    ),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.grey.shade50,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 16,
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 20),
+
+                            Theme(
+                              data: Theme.of(context).copyWith(
+                                inputDecorationTheme: InputDecorationTheme(
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                    borderSide: const BorderSide(
+                                      color: Colors.black,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              child: TextField(
+                                controller: passwordController,
+                                obscureText: !isPasswordVisible,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  color: Colors.black,
+                                ),
+                                decoration: InputDecoration(
+                                  labelText: "Password",
+                                  labelStyle: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade700,
+                                  ),
+                                  prefixIcon: Icon(
+                                    Icons.lock_outline,
+                                    size: 20,
+                                    color: Colors.grey.shade800,
+                                  ),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      isPasswordVisible
+                                          ? Icons.visibility_off_outlined
+                                          : Icons.visibility_outlined,
+                                      size: 20,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        isPasswordVisible = !isPasswordVisible;
+                                      });
+                                    },
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                    borderSide: BorderSide(
+                                      color: Colors.grey.shade300,
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                    borderSide: BorderSide(
+                                      color: Colors.grey.shade200,
+                                    ),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.grey.shade50,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 16,
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 35),
+
+                            // Modern black button with animation
+                            TweenAnimationBuilder(
+                              tween: Tween<double>(begin: 0.9, end: 1.0),
+                              duration: const Duration(milliseconds: 800),
+                              builder: (context, value, child) {
+                                return Transform.scale(
+                                  scale: value,
+                                  child: Container(
+                                    width: double.infinity,
+                                    height: 55,
+                                    child: ElevatedButton(
+                                      onPressed: () async {
+                                        if (usernameController
+                                                .text
+                                                .isNotEmpty &&
+                                            passwordController
+                                                .text
+                                                .isNotEmpty) {
+                                          try {
+                                            String? result =
+                                                await LoginAkunPembeli.loginAkunPembeli(
+                                                  usernameController.text,
+                                                  passwordController.text,
+                                                );
+
+                                            if (result == "admin") {
+                                              toastification.show(
+                                                context: context,
+                                                title: const Text(
+                                                  "Login Berhasil",
+                                                ),
+                                                description: const Text(
+                                                  "Selamat Datang Admin Wijaya Store",
+                                                ),
+                                                type:
+                                                    ToastificationType.success,
+                                                style: ToastificationStyle.flat,
+                                                alignment: Alignment.topCenter,
+                                                autoCloseDuration:
+                                                    const Duration(seconds: 5),
+                                                icon: const Icon(Icons.check),
+                                              );
+                                              await Navigator.of(
+                                                context,
+                                              ).pushReplacement(
+                                                MaterialPageRoute(
+                                                  builder:
+                                                      (context) =>
+                                                          const MainAdmin(),
+                                                ),
+                                              );
+                                            } else if (result == "pembeli") {
+                                              toastification.show(
+                                                context: context,
+                                                title: const Text(
+                                                  "Login Berhasil",
+                                                ),
+                                                description: const Text(
+                                                  "Selamat Datang, Silahkan Belanja",
+                                                ),
+                                                type:
+                                                    ToastificationType.success,
+                                                style: ToastificationStyle.flat,
+                                                alignment: Alignment.topCenter,
+                                                autoCloseDuration:
+                                                    const Duration(seconds: 5),
+                                                icon: const Icon(Icons.check),
+                                              );
+                                              await Navigator.of(
+                                                context,
+                                              ).pushReplacement(
+                                                MaterialPageRoute(
+                                                  builder:
+                                                      (context) =>
+                                                          const MainPembeli(),
+                                                ),
+                                              );
+                                            } else if (result == "karyawan") {
+                                              toastification.show(
+                                                context: context,
+                                                title: const Text(
+                                                  "Login Berhasil",
+                                                ),
+                                                description: const Text(
+                                                  "Semangat Pagi Karyawan Wijaya Store",
+                                                ),
+                                                type:
+                                                    ToastificationType.success,
+                                                style: ToastificationStyle.flat,
+                                                alignment: Alignment.topCenter,
+                                                autoCloseDuration:
+                                                    const Duration(seconds: 5),
+                                                icon: const Icon(Icons.check),
+                                              );
+                                              await Navigator.of(
+                                                context,
+                                              ).pushReplacement(
+                                                MaterialPageRoute(
+                                                  builder:
+                                                      (context) =>
+                                                          const MainKaryawan(),
+                                                ),
+                                              );
+                                            } else {
+                                              toastification.show(
+                                                context: context,
+                                                title: const Text(
+                                                  "Login Gagal",
+                                                ),
+                                                description: Text(result!),
+                                                type: ToastificationType.error,
+                                                style: ToastificationStyle.flat,
+                                                alignment: Alignment.topCenter,
+                                                autoCloseDuration:
+                                                    const Duration(seconds: 5),
+                                                icon: const Icon(
+                                                  Icons.error_outline,
+                                                ),
+                                              );
+                                            }
+                                          } catch (e) {
+                                            toastification.show(
+                                              context: context,
+                                              title: const Text("Login Gagal"),
+                                              description: Text(
+                                                "Terjadi kesalahan: $e",
+                                              ),
+                                              type: ToastificationType.error,
+                                              style: ToastificationStyle.flat,
+                                              alignment: Alignment.topCenter,
+                                              autoCloseDuration: const Duration(
+                                                seconds: 5,
+                                              ),
+                                              icon: const Icon(
+                                                Icons.error_outline,
+                                              ),
+                                            );
+                                          }
+                                        } else {
+                                          toastification.show(
+                                            context: context,
+                                            title: const Text("Login Gagal"),
+                                            description: const Text(
+                                              "Username dan Password tidak boleh kosong",
+                                            ),
+                                            type: ToastificationType.error,
+                                            style: ToastificationStyle.flat,
+                                            alignment: Alignment.topCenter,
+                                            autoCloseDuration: const Duration(
+                                              seconds: 5,
+                                            ),
+                                            icon: const Icon(
+                                              Icons.error_outline,
+                                            ),
+                                          );
+                                        }
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        foregroundColor: Colors.white,
+                                        backgroundColor: Colors.black,
+                                        elevation: 0,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 32,
+                                          vertical: 16,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            15,
+                                          ),
+                                        ),
+                                      ).copyWith(
+                                        overlayColor:
+                                            MaterialStateProperty.resolveWith<
+                                              Color?
+                                            >((Set<MaterialState> states) {
+                                              if (states.contains(
+                                                MaterialState.pressed,
+                                              )) {
+                                                return Colors.grey.shade800;
+                                              }
+                                              if (states.contains(
+                                                MaterialState.hovered,
+                                              )) {
+                                                return Colors.grey.shade900;
+                                              }
+                                              return null;
+                                            }),
+                                      ),
+                                      child: const Text(
+                                        "LOGIN",
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            "Belum punya akun?",
+                            style: TextStyle(fontSize: 14, color: Colors.grey),
+                          ),
+                          TextButton(
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero, // Hapus padding bawaan
+                              minimumSize: Size(
+                                0,
+                                0,
+                              ), // Hilangkan ukuran minimum
+                              tapTargetSize:
+                                  MaterialTapTargetSize
+                                      .shrinkWrap, // Rapatkan area klik
+                            ),
+                            onPressed: () {
+                              Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) =>
+                                          const RegisterPage(), // Ganti dengan halaman pendaftaran
+                                ),
+                              );
+                            },
+                            child: const Text(
+                              " Daftar Sekarang", // Tambahkan spasi di depan agar rapat
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
+
+                      const SizedBox(height: 30),
+
+                      // Footer text
+                      Center(
+                        child: Text(
+                          "© 2025 Wijaya Store. All rights reserved.",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
