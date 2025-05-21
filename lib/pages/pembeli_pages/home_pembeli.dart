@@ -72,7 +72,7 @@ class _HomePembeliState extends State<HomePembeli> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          "Logo",
+          "WIJAYA STORE",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true, // Center the title
@@ -94,7 +94,7 @@ class _HomePembeliState extends State<HomePembeli> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: "What are you looking for?",
+                hintText: "Apa yang kamu cari?",
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
@@ -113,7 +113,7 @@ class _HomePembeliState extends State<HomePembeli> {
             child: Container(
               height: 100,
               decoration: BoxDecoration(
-                color: Colors.black,
+                color: Colors.black.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -122,18 +122,15 @@ class _HomePembeliState extends State<HomePembeli> {
                     flex: 2,
                     child: Padding(
                       padding: const EdgeInsets.all(8.0),
-                      child: Image.network(
-                        'https://example.com/placeholder.jpg',
+                      child: Image.asset(
+                        "assets/images/shoe.png",
+                        fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
-                          return Image.asset(
-                            'assets/placeholder.jpg',
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                color: Colors.red,
-                                height: 80,
-                                width: 120,
-                              );
-                            },
+                          return Container(
+                            color: Colors.grey[300],
+                            child: const Center(
+                              child: Icon(Icons.image_not_supported, size: 40),
+                            ),
                           );
                         },
                       ),
@@ -148,30 +145,18 @@ class _HomePembeliState extends State<HomePembeli> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const Text(
-                            "Get your special",
+                            "Dapatkan tawaran menarik",
                             style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                           const Text(
-                            "sale up to 50%",
+                            "Murah dan berkualitas",
                             style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                             ),
-                          ),
-                          const SizedBox(height: 5),
-                          ElevatedButton(
-                            onPressed: () {},
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 15,
-                              ),
-                              minimumSize: const Size(100, 30),
-                            ),
-                            child: const Text("Shop Now"),
                           ),
                         ],
                       ),
@@ -192,15 +177,8 @@ class _HomePembeliState extends State<HomePembeli> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  "New Arrival",
+                  "PRODUCTS",
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                TextButton(
-                  onPressed: () {},
-                  child: const Text(
-                    "See all",
-                    style: TextStyle(color: Colors.orange),
-                  ),
                 ),
               ],
             ),
@@ -306,7 +284,9 @@ class ProductCard extends StatelessWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => DetailProduk()),
+          MaterialPageRoute(
+            builder: (context) => DetailProduk(productId: product.id),
+          ),
         );
       },
       child: Card(

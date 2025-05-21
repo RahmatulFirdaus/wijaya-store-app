@@ -131,3 +131,75 @@ class GetDataProduk {
     }
   }
 }
+
+//class untuk menampilkan data detail produk
+class Varian {
+  final int idVarian;
+  final String warna;
+  final int ukuran;
+  final int stok;
+  final String linkGambarVarian;
+
+  Varian({
+    required this.idVarian,
+    required this.warna,
+    required this.ukuran,
+    required this.stok,
+    required this.linkGambarVarian,
+  });
+
+  factory Varian.fromJson(Map<String, dynamic> json) {
+    return Varian(
+      idVarian: json['id_varian'],
+      warna: json['warna'],
+      ukuran: json['ukuran'],
+      stok: json['stok'],
+      linkGambarVarian: json['link_gambar_varian'],
+    );
+  }
+}
+
+class GetDataDetailProduk {
+  final String id;
+  final String namaProduk;
+  final String deskripsi;
+  final String harga;
+  final String linkGambar;
+  final String kategoriProduk;
+  final List<Varian> varian;
+
+  GetDataDetailProduk({
+    required this.id,
+    required this.namaProduk,
+    required this.deskripsi,
+    required this.harga,
+    required this.linkGambar,
+    required this.kategoriProduk,
+    required this.varian,
+  });
+
+  factory GetDataDetailProduk.fromJson(Map<String, dynamic> json) {
+    return GetDataDetailProduk(
+      id: json['id'].toString(),
+      namaProduk: json['nama'],
+      deskripsi: json['deskripsi'],
+      harga: json['harga'],
+      linkGambar: json['link_gambar'],
+      kategoriProduk: json['kategori'],
+      varian: (json['varian'] as List).map((v) => Varian.fromJson(v)).toList(),
+    );
+  }
+
+  static Future<GetDataDetailProduk> getDataDetailProduk(String id) async {
+    Uri url = Uri.parse("http://192.168.1.96:3000/api/tampilProdukDetail/$id");
+    var response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      var jsonData = jsonDecode(response.body);
+      var data = jsonData["data"];
+      return GetDataDetailProduk.fromJson(data);
+    } else {
+      throw Exception("Gagal mengambil data produk");
+    }
+  }
+}
