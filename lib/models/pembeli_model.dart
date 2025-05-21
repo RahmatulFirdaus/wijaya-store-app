@@ -79,3 +79,55 @@ class PembeliDaftarAkun {
     }
   }
 }
+
+//class untuk menampilkan data produk
+class GetDataProduk {
+  String id;
+  String nama_produk;
+  String deskripsi;
+  String harga;
+  String link_gambar;
+  String stok;
+  String kategori_produk;
+
+  GetDataProduk({
+    required this.id,
+    required this.nama_produk,
+    required this.deskripsi,
+    required this.harga,
+    required this.link_gambar,
+    required this.stok,
+    required this.kategori_produk,
+  });
+
+  static Future<List<GetDataProduk>> getDataProduk() async {
+    final response = await http.get(
+      Uri.parse('http://192.168.1.96:3000/api/tampilProduk'),
+    );
+
+    try {
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final List<dynamic> data = jsonDecode(response.body)['data'];
+        return data
+            .map(
+              (item) => GetDataProduk(
+                id: item['id'].toString(), // id angka di-parse ke string
+                nama_produk: item['nama_produk'].toString(),
+                deskripsi: item['deskripsi_produk'].toString(),
+                harga: item['harga_produk'].toString(),
+                link_gambar: item['link_gambar_produk'].toString(),
+                stok: item['total_stok_produk'].toString(),
+                kategori_produk: item['kategori'].toString(),
+              ),
+            )
+            .toList();
+      } else {
+        throw Exception(
+          'Failed to load products, status code: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      throw Exception('Failed to load products: $e');
+    }
+  }
+}
