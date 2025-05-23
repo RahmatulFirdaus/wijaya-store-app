@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:ffi';
 
+import 'package:dio/dio.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -85,7 +87,8 @@ class GetDataProduk {
   String id;
   String nama_produk;
   String deskripsi;
-  String harga;
+  int harga;
+  int harga_awal;
   String link_gambar;
   String stok;
   String kategori_produk;
@@ -95,6 +98,7 @@ class GetDataProduk {
     required this.nama_produk,
     required this.deskripsi,
     required this.harga,
+    required this.harga_awal,
     required this.link_gambar,
     required this.stok,
     required this.kategori_produk,
@@ -111,10 +115,11 @@ class GetDataProduk {
         return data
             .map(
               (item) => GetDataProduk(
-                id: item['id'].toString(), // id angka di-parse ke string
+                id: item['id'].toString(),
                 nama_produk: item['nama_produk'].toString(),
                 deskripsi: item['deskripsi_produk'].toString(),
-                harga: item['harga_produk'].toString(),
+                harga: int.tryParse(item['harga_produk'].toString()) ?? 0,
+                harga_awal: int.tryParse(item['harga_awal'].toString()) ?? 0,
                 link_gambar: item['link_gambar_produk'].toString(),
                 stok: item['total_stok_produk'].toString(),
                 kategori_produk: item['kategori'].toString(),
@@ -163,6 +168,7 @@ class GetDataDetailProduk {
   final String id;
   final String namaProduk;
   final String deskripsi;
+  final String hargaAwal;
   final String harga;
   final String linkGambar;
   final String kategoriProduk;
@@ -176,12 +182,14 @@ class GetDataDetailProduk {
     required this.linkGambar,
     required this.kategoriProduk,
     required this.varian,
+    required this.hargaAwal,
   });
 
   factory GetDataDetailProduk.fromJson(Map<String, dynamic> json) {
     return GetDataDetailProduk(
       id: json['id'].toString(),
       namaProduk: json['nama'],
+      hargaAwal: json['harga_awal'],
       deskripsi: json['deskripsi'],
       harga: json['harga'],
       linkGambar: json['link_gambar'],
@@ -203,3 +211,64 @@ class GetDataDetailProduk {
     }
   }
 }
+
+//fungsi untuk menampilkan ulasan produk
+class GetDataUlasan {
+  String id;
+  String id_produk;
+  String id_pembeli;
+  String nama_pembeli;
+  String ulasan;
+  String rating;
+  String tanggal;
+
+  GetDataUlasan({
+    required this.id,
+    required this.id_produk,
+    required this.id_pembeli,
+    required this.nama_pembeli,
+    required this.ulasan,
+    required this.rating,
+    required this.tanggal,
+  });
+
+  static Future<List<GetDataUlasan>> getDataUlasan(String id) async {
+    Uri url = Uri.parse("http://192.168.1.96:3000/api/tampilUlasanProduk/$id");
+
+    try {
+      var response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        var jsonData = jsonDecode(response.body);
+        var data = jsonData["data"];
+
+        // Check if data is null or empty
+        if (data == null || data.isEmpty) {
+          return []; // Return empty list instead of null
+        }
+
+        return List<GetDataUlasan>.from(
+          data.map(
+            (item) => GetDataUlasan(
+              id: item['id'].toString(),
+              id_produk: item['id_produk'].toString(),
+              id_pembeli: item['id_pembeli'].toString(),
+              nama_pembeli: item['nama'].toString(),
+              ulasan: item['komentar'].toString(),
+              rating: item['rating'].toString(),
+              tanggal: item['tanggal_komentar'].toString(),
+            ),
+          ),
+        );
+      } else {
+        // Return empty list on error instead of error message
+        return [];
+      }
+    } catch (e) {
+      // Return empty list on exception instead of error message
+      return [];
+    }
+  }
+}
+
+//model chat
