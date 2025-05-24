@@ -70,6 +70,7 @@ class _HomePembeliState extends State<HomePembeli> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text(
           "WIJAYA STORE",
@@ -242,11 +243,13 @@ class _HomePembeliState extends State<HomePembeli> {
                     ),
                   );
                 } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text('No products found'));
+                  return const Center(child: Text('Tidak ada produk tersedia'));
                 } else {
                   final filteredProducts = _filterProducts(snapshot.data!);
                   if (filteredProducts.isEmpty) {
-                    return const Center(child: Text('No products found'));
+                    return const Center(
+                      child: Text('Tidak ada produk tersedia'),
+                    );
                   }
                   return GridView.builder(
                     padding: const EdgeInsets.all(16),

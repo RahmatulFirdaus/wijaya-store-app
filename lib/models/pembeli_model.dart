@@ -13,23 +13,32 @@ class LoginAkunPembeli {
   ) async {
     const storage = FlutterSecureStorage();
     final response = await http.post(
-      Uri.parse(
-        'http://192.168.1.96:3000/api/login',
-      ), // Replace with your API URL
+      Uri.parse('http://192.168.1.96:3000/api/login'),
       headers: <String, String>{
         'Content-Type': 'application/json; charset=UTF-8',
       },
       body: '{"username": "$username", "password": "$password"}',
     );
+
     try {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final String token = data['data']['token'];
         final String role = data['data']['role'];
 
-        // Simpan token ke storage
+        // Ambil id dan nama dari response
+        final String id =
+            data['data']['id'].toString(); // Ubah ke String jika perlu
+        final String nama = data['data']['nama'];
+
+        // Simpan token, id, dan nama ke storage
         await storage.write(key: 'token', value: token);
+        await storage.write(key: 'id', value: id);
+        await storage.write(key: 'nama', value: nama);
+
         print("token login: $token");
+        print("id user: $id");
+        print("nama user: $nama");
 
         return role;
       } else {
@@ -344,12 +353,21 @@ class GetDataPembeli {
   });
 
   static Future<List<GetDataPembeli>> getDataPembeli() async {
-    final response = await http.get(
-      Uri.parse('http://192.168.1.96:3000/api/chatListPembeli'),
+    const storage = FlutterSecureStorage();
+    final url = Uri.parse('http://192.168.1.96:3000/api/chatListPembeli');
+
+    var token = await storage.read(key: 'token');
+
+    var hasilResponse = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
     );
     try {
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final List<dynamic> data = jsonDecode(response.body)['data'];
+      if (hasilResponse.statusCode == 200 || hasilResponse.statusCode == 201) {
+        final List<dynamic> data = jsonDecode(hasilResponse.body)['data'];
         return data
             .map(
               (item) => GetDataPembeli(
@@ -365,7 +383,7 @@ class GetDataPembeli {
             .toList();
       } else {
         throw Exception(
-          'Failed to load products, status code: ${response.statusCode}',
+          'Failed to load products, status code: ${hasilResponse.statusCode}',
         );
       }
     } catch (e) {
@@ -388,8 +406,8 @@ class GetChat {
 
   factory GetChat.fromJson(Map<String, dynamic> json) {
     return GetChat(
-      id_pengirim: json['id_user'].toString(),
-      id_penerima: json['id_lawan'].toString(),
+      id_pengirim: json['id_pengirim'].toString(),
+      id_penerima: json['id_penerima'].toString(),
       pesan: json['pesan'].toString(),
     );
   }

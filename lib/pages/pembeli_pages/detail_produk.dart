@@ -367,16 +367,6 @@ class _DetailProdukState extends State<DetailProduk> {
             Navigator.pop(context);
           },
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.favorite_border, color: Colors.black),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.share, color: Colors.black),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: FutureBuilder<GetDataDetailProduk>(
         future: futureProductDetail,
