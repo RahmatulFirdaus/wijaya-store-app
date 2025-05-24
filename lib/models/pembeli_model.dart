@@ -29,6 +29,7 @@ class LoginAkunPembeli {
 
         // Simpan token ke storage
         await storage.write(key: 'token', value: token);
+        print("token login: $token");
 
         return role;
       } else {
@@ -271,4 +272,189 @@ class GetDataUlasan {
   }
 }
 
-//model chat
+//class untuk menampilkan list data admin untuk pembeli
+class GetDataAdmin {
+  String id;
+  String nama;
+  String username;
+  String password;
+  String email;
+  String no_telp;
+  String role;
+
+  GetDataAdmin({
+    required this.id,
+    required this.nama,
+    required this.username,
+    required this.password,
+    required this.email,
+    required this.no_telp,
+    required this.role,
+  });
+
+  static Future<List<GetDataAdmin>> getDataAdmin() async {
+    final response = await http.get(
+      Uri.parse('http://192.168.1.96:3000/api/chatListAdmin'),
+    );
+    try {
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final List<dynamic> data = jsonDecode(response.body)['data'];
+        return data
+            .map(
+              (item) => GetDataAdmin(
+                id: item['id'].toString(),
+                nama: item['nama'].toString(),
+                username: item['username'].toString(),
+                password: item['password'].toString(),
+                email: item['email'].toString(),
+                no_telp: item['no_telp'].toString(),
+                role: item['role'].toString(),
+              ),
+            )
+            .toList();
+      } else {
+        throw Exception(
+          'Failed to load products, status code: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      throw Exception('Failed to load products: $e');
+    }
+  }
+}
+
+//class untuk menampilkan list data pembeli untuk admin
+class GetDataPembeli {
+  String id;
+  String nama;
+  String username;
+  String password;
+  String email;
+  String no_telp;
+  String role;
+
+  GetDataPembeli({
+    required this.id,
+    required this.nama,
+    required this.username,
+    required this.password,
+    required this.email,
+    required this.no_telp,
+    required this.role,
+  });
+
+  static Future<List<GetDataPembeli>> getDataPembeli() async {
+    final response = await http.get(
+      Uri.parse('http://192.168.1.96:3000/api/chatListPembeli'),
+    );
+    try {
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final List<dynamic> data = jsonDecode(response.body)['data'];
+        return data
+            .map(
+              (item) => GetDataPembeli(
+                id: item['id'].toString(),
+                nama: item['nama'].toString(),
+                username: item['username'].toString(),
+                password: item['password'].toString(),
+                email: item['email'].toString(),
+                no_telp: item['no_telp'].toString(),
+                role: item['role'].toString(),
+              ),
+            )
+            .toList();
+      } else {
+        throw Exception(
+          'Failed to load products, status code: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      throw Exception('Failed to load products: $e');
+    }
+  }
+}
+
+//class api untuk menampilkan data chat
+class GetChat {
+  String id_pengirim;
+  String id_penerima;
+  String pesan;
+
+  GetChat({
+    required this.id_pengirim,
+    required this.id_penerima,
+    required this.pesan,
+  });
+
+  factory GetChat.fromJson(Map<String, dynamic> json) {
+    return GetChat(
+      id_pengirim: json['id_user'].toString(),
+      id_penerima: json['id_lawan'].toString(),
+      pesan: json['pesan'].toString(),
+    );
+  }
+
+  static Future<List<GetChat>> getChat(String id) async {
+    const storage = FlutterSecureStorage();
+    var url = Uri.parse("http://192.168.1.96:3000/api/chat/$id");
+    var token = await storage.read(key: 'token');
+
+    var hasilResponse = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (hasilResponse.statusCode == 200) {
+      var jsonData = jsonDecode(hasilResponse.body);
+      var dataList = jsonData["data"] as List;
+
+      return dataList.map((item) => GetChat.fromJson(item)).toList();
+    } else if (hasilResponse.statusCode == 404) {
+      return []; // Return empty list if no chat found
+    } else {
+      throw Exception("Gagal mengambil data chat");
+    }
+  }
+}
+
+//class api untuk mengirimkan chat
+class PostChat {
+  String id_pengirim;
+  String id_penerima;
+  String pesan;
+
+  PostChat({
+    required this.id_pengirim,
+    required this.id_penerima,
+    required this.pesan,
+  });
+
+  static Future<PostChat> postChat(
+    String id_pengirim,
+    String id_penerima,
+    String pesan,
+  ) async {
+    const storage = FlutterSecureStorage();
+    Uri url = Uri.parse("http://192.168.1.96:3000/api/chat/send");
+    var token = await storage.read(key: 'token');
+    print("token: $token");
+    var hasilResponse = await http.post(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+      body: {
+        'id_pengirim': id_pengirim,
+        'id_penerima': id_penerima,
+        'pesan': pesan,
+      },
+    );
+    var jsonData = jsonDecode(hasilResponse.body);
+    return PostChat(
+      id_pengirim: jsonData['id_user'].toString(),
+      id_penerima: jsonData['id_penerima'].toString(),
+      pesan: jsonData['pesan'].toString(),
+    );
+  }
+}

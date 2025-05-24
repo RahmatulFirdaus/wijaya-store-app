@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/models/pembeli_model.dart';
-import 'package:frontend/pages/pembeli_pages/chat_admin.dart';
+import 'package:frontend/pages/pembeli_pages/list_chat_admin.dart';
 
 const String baseUrl = "http://192.168.1.96:3000/uploads/";
 
@@ -195,7 +195,7 @@ class _DetailProdukState extends State<DetailProduk> {
   void showChatWithAdmin(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => ChatWithAdmin()),
+      MaterialPageRoute(builder: (context) => AdminListPage()),
     );
   }
 
