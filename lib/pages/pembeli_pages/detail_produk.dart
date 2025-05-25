@@ -18,6 +18,8 @@ class _DetailProdukState extends State<DetailProduk> {
   late Future<List<GetDataUlasan>> futureUlasan;
   int? selectedVariantIndex;
   int? selectedSize;
+  int jumlahOrder = 1; // Add quantity state
+  bool isAddingToCart = false; // Loading state for cart button
 
   @override
   void initState() {
@@ -354,6 +356,124 @@ class _DetailProdukState extends State<DetailProduk> {
     );
   }
 
+  Future<void> handleAddToCart() async {
+    if (selectedVariantIndex == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pilih varian produk terlebih dahulu'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      isAddingToCart = true;
+    });
+
+    try {
+      // Get the product data that's already loaded
+      final product = await futureProductDetail;
+
+      // Get the selected variant using the index
+      final selectedVariant = product.varian[selectedVariantIndex!];
+
+      // Use the correct field name for variant ID
+      final result = await TambahKeranjang.addToKeranjang(
+        selectedVariant.idVarian.toString(), // Gunakan idVarian, bukan id
+        jumlahOrder.toString(),
+      );
+
+      if (result != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal menambahkan ke keranjang: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        isAddingToCart = false;
+      });
+    }
+  }
+
+  // Build quantity selector
+  Widget buildQuantitySelector(int maxStock) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Jumlah',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed:
+                          jumlahOrder > 1
+                              ? () {
+                                setState(() {
+                                  jumlahOrder--;
+                                });
+                              }
+                              : null,
+                      icon: const Icon(Icons.remove),
+                      iconSize: 20,
+                    ),
+                    Container(
+                      width: 40,
+                      alignment: Alignment.center,
+                      child: Text(
+                        jumlahOrder.toString(),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed:
+                          jumlahOrder < maxStock
+                              ? () {
+                                setState(() {
+                                  jumlahOrder++;
+                                });
+                              }
+                              : null,
+                      icon: const Icon(Icons.add),
+                      iconSize: 20,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Stok tersedia: $maxStock',
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -388,6 +508,21 @@ class _DetailProdukState extends State<DetailProduk> {
           if (selectedVariantIndex == null && product.varian.isNotEmpty) {
             selectedVariantIndex = 0;
             selectedSize = product.varian[0].ukuran;
+          }
+
+          // Get current variant stock
+          int currentStock =
+              selectedVariantIndex != null
+                  ? product.varian[selectedVariantIndex!].stok
+                  : 0;
+
+          // Ensure jumlahOrder doesn't exceed stock
+          if (jumlahOrder > currentStock) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              setState(() {
+                jumlahOrder = currentStock > 0 ? 1 : 0;
+              });
+            });
           }
 
           // Get unique color variants for the thumbnail selection
@@ -474,6 +609,8 @@ class _DetailProdukState extends State<DetailProduk> {
                                           product
                                               .varian[selectedVariantIndex!]
                                               .ukuran;
+                                      // Reset quantity when variant changes
+                                      jumlahOrder = 1;
                                     });
                                   },
                                   child: Container(
@@ -792,6 +929,8 @@ class _DetailProdukState extends State<DetailProduk> {
                                                     );
                                                 if (index != -1) {
                                                   selectedVariantIndex = index;
+                                                  // Reset quantity when size changes
+                                                  jumlahOrder = 1;
                                                 }
                                               }
                                             });
@@ -839,7 +978,39 @@ class _DetailProdukState extends State<DetailProduk> {
                   ),
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
+
+                // Quantity Selector
+                if (currentStock > 0) ...[
+                  buildQuantitySelector(currentStock),
+                  const SizedBox(height: 24),
+                ] else ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.warning_amber, color: Colors.red.shade600),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Stok habis untuk varian ini',
+                            style: TextStyle(
+                              color: Colors.red.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
 
                 // Action Buttons
                 Padding(
@@ -871,46 +1042,48 @@ class _DetailProdukState extends State<DetailProduk> {
                         child: SizedBox(
                           height: 56,
                           child: OutlinedButton(
-                            onPressed: () {},
+                            onPressed:
+                                currentStock > 0 && !isAddingToCart
+                                    ? handleAddToCart
+                                    : null,
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Colors.black),
+                              side: BorderSide(
+                                color:
+                                    currentStock > 0
+                                        ? Colors.black
+                                        : Colors.grey.shade300,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
+                              backgroundColor:
+                                  currentStock > 0
+                                      ? Colors.white
+                                      : Colors.grey.shade100,
                             ),
-                            child: const Text(
-                              'Keranjang',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-
-                      // Buy Now Button
-                      Expanded(
-                        child: SizedBox(
-                          height: 56,
-                          child: ElevatedButton(
-                            onPressed: () {},
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.black,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: const Text(
-                              'Beli Sekarang',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Colors.white,
-                              ),
-                            ),
+                            child:
+                                isAddingToCart
+                                    ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.black,
+                                      ),
+                                    )
+                                    : Text(
+                                      currentStock > 0
+                                          ? 'Tambah ke Keranjang'
+                                          : 'Stok Habis',
+                                      style: TextStyle(
+                                        color:
+                                            currentStock > 0
+                                                ? Colors.black
+                                                : Colors.grey.shade500,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
                           ),
                         ),
                       ),

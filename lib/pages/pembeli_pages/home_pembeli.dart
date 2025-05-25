@@ -79,12 +79,6 @@ class _HomePembeliState extends State<HomePembeli> {
         centerTitle: true, // Center the title
         backgroundColor: Colors.white,
         elevation: 0.5,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

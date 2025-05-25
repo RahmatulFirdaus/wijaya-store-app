@@ -149,11 +149,12 @@ class GetDataProduk {
 
 //class untuk menampilkan data detail produk
 class Varian {
-  final int idVarian;
-  final String warna;
-  final int ukuran;
-  final int stok;
-  final String linkGambarVarian;
+  final String idVarian; // Sesuai dengan API response 'id_varian'
+  final String warna; // Sesuai dengan API response 'warna'
+  final int ukuran; // Sesuai dengan API response 'ukuran'
+  final int stok; // Sesuai dengan API response 'stok'
+  final String
+  linkGambarVarian; // Sesuai dengan API response 'link_gambar_varian'
 
   Varian({
     required this.idVarian,
@@ -165,15 +166,16 @@ class Varian {
 
   factory Varian.fromJson(Map<String, dynamic> json) {
     return Varian(
-      idVarian: json['id_varian'],
+      idVarian: json['id_varian'].toString(),
       warna: json['warna'],
-      ukuran: json['ukuran'],
-      stok: json['stok'],
+      ukuran: int.parse(json['ukuran'].toString()),
+      stok: int.parse(json['stok'].toString()),
       linkGambarVarian: json['link_gambar_varian'],
     );
   }
 }
 
+// Class GetDataDetailProduk - setelah class Varian
 class GetDataDetailProduk {
   final String id;
   final String namaProduk;
@@ -474,5 +476,130 @@ class PostChat {
       id_penerima: jsonData['id_penerima'].toString(),
       pesan: jsonData['pesan'].toString(),
     );
+  }
+}
+
+//class untuk menambahkan ke keranjang
+class TambahKeranjang {
+  String id_varian_produk;
+  String jumlahOrder;
+
+  TambahKeranjang({required this.id_varian_produk, required this.jumlahOrder});
+
+  static Future<String?> addToKeranjang(
+    String id_varian_produk,
+    String jumlahOrder,
+  ) async {
+    const storage = FlutterSecureStorage();
+    var token = await storage.read(key: 'token');
+
+    if (token == null) {
+      throw Exception('Token tidak ditemukan. Silakan login terlebih dahulu.');
+    }
+
+    Uri url = Uri.parse("http://192.168.1.96:3000/api/pembeliTambahKeranjang");
+
+    var response = await http.post(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: {
+        'id_varian_produk': id_varian_produk,
+        'jumlah_order': jumlahOrder, // Fixed parameter name
+      },
+    );
+
+    try {
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        var jsonData = jsonDecode(response.body);
+        return jsonData['pesan'] ?? 'Berhasil ditambahkan ke keranjang';
+      } else {
+        var jsonData = jsonDecode(response.body);
+        throw Exception(jsonData['pesan'] ?? 'Gagal menambahkan ke keranjang');
+      }
+    } catch (e) {
+      if (e is FormatException) {
+        throw Exception('Response tidak valid dari server');
+      }
+      rethrow;
+    }
+  }
+}
+
+//class untuk menampilkan data keranjang pembeli
+class GetDataKeranjang {
+  String id;
+  String id_varian_produk;
+  String hargaAwal;
+  String jumlah_order;
+  String nama_produk;
+  String warna;
+  String ukuran;
+  String hargaSatuan;
+  String linkGambar;
+
+  GetDataKeranjang({
+    required this.id,
+    required this.id_varian_produk,
+    required this.jumlah_order,
+    required this.nama_produk,
+    required this.warna,
+    required this.ukuran,
+    required this.hargaAwal,
+    required this.hargaSatuan,
+    required this.linkGambar,
+  });
+
+  static Future<List<GetDataKeranjang>> getDataKeranjang() async {
+    const storage = FlutterSecureStorage();
+    var token = await storage.read(key: 'token');
+    Uri url = Uri.parse("http://192.168.1.96:3000/api/pembeliTampilKeranjang");
+    var response = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    );
+    try {
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        var jsonData = jsonDecode(response.body);
+        var data = jsonData['data'] as List;
+
+        return data.map((item) {
+          return GetDataKeranjang(
+            id: item['id_item_order'].toString(),
+            id_varian_produk: item['id_varian_produk'].toString(),
+            jumlah_order: item['jumlah'].toString(),
+            nama_produk: item['nama_produk'].toString(),
+            warna: item['warna'].toString(),
+            ukuran: item['ukuran'].toString(),
+            hargaAwal: item['harga_awal'].toString(),
+            hargaSatuan: item['harga_satuan'].toString(),
+            linkGambar: item['link_gambar_varian'].toString(),
+          );
+        }).toList();
+      } else {
+        throw Exception('Gagal mengambil data keranjang');
+      }
+    } catch (e) {
+      throw Exception('Gagal mengambil data keranjang: $e');
+    }
+  }
+}
+
+//class untuk menghapus data keranjang pembeli
+class HapusKeranjang {
+  String id;
+  HapusKeranjang({required this.id});
+  static Future<HapusKeranjang> hapusKeranjang(String id) async {
+    Uri url = Uri.parse(
+      "https://192.168.1.96:3000/api/pembeliDeleteKeranjang/1$id", //diisi dengan id_varian_produk
+    );
+    var hasilResponse = await http.delete(url);
+    var jsonData = jsonDecode(hasilResponse.body);
+    return HapusKeranjang(id: jsonData['id'].toString());
   }
 }
