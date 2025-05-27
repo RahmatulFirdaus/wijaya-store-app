@@ -1,9 +1,7 @@
 import 'dart:convert';
-import 'dart:ffi';
-
-import 'package:dio/dio.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http_parser/http_parser.dart';
 
 //class LoginAkunPembeli
 class LoginAkunPembeli {
@@ -669,66 +667,70 @@ class GetDataMetodePembayaran {
 
 //class untuk menambahkan data pembayaran pembeli
 class TambahPembayaran {
-  String id_metode_pembayaran;
-  String total_harga;
-  String nama_pengirim;
-  String bank_pengirim;
-  String alamat_pengiriman;
-  String bukti_pembayaran;
-
-  TambahPembayaran({
-    required this.id_metode_pembayaran,
-    required this.total_harga,
-    required this.nama_pengirim,
-    required this.bank_pengirim,
-    required this.alamat_pengiriman,
-    required this.bukti_pembayaran,
-  });
-
-  /// Method untuk mengirim data pembayaran ke server
   static Future<String?> addPembayaran({
     required String id_metode_pembayaran,
     required String total_harga,
     required String nama_pengirim,
     required String bank_pengirim,
     required String alamat_pengiriman,
-    required String bukti_pembayaran,
+    required String bukti_transfer_path, // path file gambar
   }) async {
     const storage = FlutterSecureStorage();
     var token = await storage.read(key: 'token');
 
     if (token == null) {
-      throw Exception('Token tidak ditemukan. Silakan login terlebih dahulu.');
+      throw Exception('Token tidak ditemukan. Silakan login kembali.');
     }
 
-    Uri url = Uri.parse("http://192.168.1.96:3000/api/upload");
+    var uri = Uri.parse('http://192.168.1.96:3000/api/pembayaran/upload');
+    var request = http.MultipartRequest('POST', uri);
 
-    var request =
-        http.MultipartRequest('POST', url)
-          ..headers['Authorization'] = 'Bearer $token'
-          ..fields['id_metode_pembayaran'] = id_metode_pembayaran
-          ..fields['total_harga'] = total_harga
-          ..fields['nama_pengirim'] = nama_pengirim
-          ..fields['bank_pengirim'] = bank_pengirim
-          ..fields['alamat_pengiriman'] = alamat_pengiriman
-          ..files.add(
-            await http.MultipartFile.fromPath(
-              'bukti_transfer', // sesuaikan dengan nama field di backend
-              bukti_pembayaran,
-            ),
-          );
+    // Tambahkan Authorization header
+    request.headers['Authorization'] = 'Bearer $token';
+
+    // Tambahkan field teks
+    request.fields['id_metode_pembayaran'] = id_metode_pembayaran;
+    request.fields['total_harga'] = total_harga;
+    request.fields['nama_pengirim'] = nama_pengirim;
+    request.fields['bank_pengirim'] = bank_pengirim;
+    request.fields['alamat_pengiriman'] = alamat_pengiriman;
+
+    // Tentukan ekstensi dan contentType
+    String ext = bukti_transfer_path.split('.').last.toLowerCase();
+    String mimeType =
+        (ext == 'png')
+            ? 'png'
+            : (ext == 'jpg' || ext == 'jpeg')
+            ? 'jpeg'
+            : 'jpeg'; // fallback
+
+    // Tambahkan file bukti transfer
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'bukti_transfer',
+        bukti_transfer_path,
+        contentType: MediaType('image', mimeType),
+      ),
+    );
 
     try {
-      var response = await request.send();
-      var responseData = await http.Response.fromStream(response);
-      var jsonData = jsonDecode(responseData.body);
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      print('Response: ${response.statusCode} - ${response.body}');
+
+      var data = jsonDecode(response.body);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return jsonData['pesan'] ?? 'Pembayaran berhasil ditambahkan';
+        return data['message'];
       } else {
-        throw Exception(jsonData['pesan'] ?? 'Gagal menambahkan pembayaran');
+        // Ambil pesan error jika ada
+        String errorMessage =
+            data['message'] ?? 'Terjadi kesalahan saat mengunggah.';
+        return errorMessage;
       }
     } catch (e) {
+      print('Error: $e');
       throw Exception('Gagal mengunggah bukti pembayaran: $e');
     }
   }
