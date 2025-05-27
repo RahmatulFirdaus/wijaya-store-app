@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/models/pembeli_model.dart';
+import 'package:frontend/pages/pembeli_pages/pembayaran_pembeli.dart';
 import 'package:toastification/toastification.dart';
 
 const String baseUrl = "http://192.168.1.96:3000/uploads/";
@@ -78,6 +79,7 @@ class _KeranjangPembeliState extends State<KeranjangPembeli> {
   void calculateTotal() {
     double total = 0;
     double totalDiskonAmount = 0;
+    double totalHargaAwalAmount = 0; // Add this variable
 
     for (var item in keranjangItems) {
       double hargaSatuan = double.tryParse(item.hargaSatuan) ?? 0;
@@ -85,6 +87,8 @@ class _KeranjangPembeliState extends State<KeranjangPembeli> {
       int jumlah = int.tryParse(item.jumlah_order) ?? 0;
 
       total += hargaSatuan * jumlah;
+      totalHargaAwalAmount +=
+          hargaAwal * jumlah; // Calculate total original price
 
       // Calculate discount amount per item
       double diskonPerItem = (hargaAwal - hargaSatuan) * jumlah;
@@ -94,6 +98,7 @@ class _KeranjangPembeliState extends State<KeranjangPembeli> {
     setState(() {
       totalHarga = total;
       totalDiskon = totalDiskonAmount;
+      totalHargaAwal = totalHargaAwalAmount; // Set the total original price
     });
   }
 
@@ -180,8 +185,8 @@ class _KeranjangPembeliState extends State<KeranjangPembeli> {
         },
       );
 
-      // Call delete API
-      await HapusKeranjang.hapusKeranjang(item.id_varian_produk);
+      // Call delete API (hanya perlu id)
+      await HapusKeranjang.hapusKeranjang(item.id);
 
       // Close loading dialog
       Navigator.of(context).pop();
@@ -192,6 +197,7 @@ class _KeranjangPembeliState extends State<KeranjangPembeli> {
         calculateTotal();
       });
 
+      // Success toast
       toastification.show(
         context: context,
         title: const Text('Produk berhasil dihapus dari keranjang'),
@@ -203,6 +209,7 @@ class _KeranjangPembeliState extends State<KeranjangPembeli> {
       // Close loading dialog
       Navigator.of(context).pop();
 
+      // Error toast
       toastification.show(
         context: context,
         title: Text('Gagal menghapus produk: $e'),
@@ -210,6 +217,7 @@ class _KeranjangPembeliState extends State<KeranjangPembeli> {
         style: ToastificationStyle.fillColored,
         autoCloseDuration: const Duration(seconds: 5),
       );
+      print("Error removing item: $e");
     }
   }
 
@@ -230,10 +238,6 @@ class _KeranjangPembeliState extends State<KeranjangPembeli> {
         backgroundColor: Colors.white,
         elevation: 0,
         shadowColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
       ),
       backgroundColor: Colors.white,
       body:
@@ -525,7 +529,31 @@ class _KeranjangPembeliState extends State<KeranjangPembeli> {
                     ),
                     child: Column(
                       children: [
+                        // Total Harga Awal (show only if there's discount)
                         if (totalDiskon > 0) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                "Total Harga Awal",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                              Text(
+                                formatRupiah(totalHargaAwal),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          // Total Diskon with percentage
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -537,30 +565,32 @@ class _KeranjangPembeliState extends State<KeranjangPembeli> {
                                   color: Colors.grey[700],
                                 ),
                               ),
-                              Text(
-                                "-${formatRupiah(totalDiskon)}",
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.red[600],
-                                ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    "-${formatRupiah(totalDiskon)}",
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.red[600],
+                                    ),
+                                  ),
+                                  Text(
+                                    "(${totalHargaAwal > 0 ? ((totalDiskon / totalHargaAwal) * 100).toStringAsFixed(1) : '0'}%)",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.red[600],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                          const SizedBox(height: 4),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: Text(
-                              "(${totalHargaAwal > 0 ? ((totalDiskon / totalHargaAwal) * 100).toStringAsFixed(1) : '0'}%)",
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.red[600],
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
                           const SizedBox(height: 12),
                         ],
+                        // Total Pembayaran
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -588,7 +618,39 @@ class _KeranjangPembeliState extends State<KeranjangPembeli> {
                           height: 54,
                           child: ElevatedButton(
                             onPressed: () {
-                              // Handle checkout
+                              if (totalHarga <= 0) {
+                                toastification.show(
+                                  context: context,
+                                  title: const Text(
+                                    'Keranjang kosong, tidak ada yang bisa di-checkout',
+                                  ),
+                                  type: ToastificationType.warning,
+                                  style: ToastificationStyle.fillColored,
+                                  autoCloseDuration: const Duration(seconds: 3),
+                                );
+                                return;
+                              } else if (keranjangItems.length > 10) {
+                                toastification.show(
+                                  context: context,
+                                  title: const Text(
+                                    'Maksimal 10 item dalam keranjang',
+                                  ),
+                                  type: ToastificationType.warning,
+                                  style: ToastificationStyle.fillColored,
+                                  autoCloseDuration: const Duration(seconds: 3),
+                                );
+                                return;
+                              }
+                              // Navigate to payment page
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) => PembayaranPembeli(
+                                        totalHarga: totalHarga,
+                                      ),
+                                ),
+                              );
                               toastification.show(
                                 context: context,
                                 title: Text(

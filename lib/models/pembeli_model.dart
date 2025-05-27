@@ -490,6 +490,15 @@ class TambahKeranjang {
     String id_varian_produk,
     String jumlahOrder,
   ) async {
+    if (id_varian_produk.isEmpty || jumlahOrder.isEmpty) {
+      throw Exception('ID varian produk dan jumlah order wajib diisi.');
+    }
+
+    int? jumlahInt = int.tryParse(jumlahOrder);
+    if (jumlahInt == null || jumlahInt <= 0) {
+      throw Exception('Jumlah order harus berupa angka positif.');
+    }
+
     const storage = FlutterSecureStorage();
     var token = await storage.read(key: 'token');
 
@@ -505,10 +514,7 @@ class TambahKeranjang {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: {
-        'id_varian_produk': id_varian_produk,
-        'jumlah_order': jumlahOrder, // Fixed parameter name
-      },
+      body: {'id_varian_produk': id_varian_produk, 'jumlah_order': jumlahOrder},
     );
 
     try {
@@ -555,15 +561,18 @@ class GetDataKeranjang {
   static Future<List<GetDataKeranjang>> getDataKeranjang() async {
     const storage = FlutterSecureStorage();
     var token = await storage.read(key: 'token');
+
     Uri url = Uri.parse("http://192.168.1.96:3000/api/pembeliTampilKeranjang");
-    var response = await http.get(
-      url,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-    );
+
     try {
+      var response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      );
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         var jsonData = jsonDecode(response.body);
         var data = jsonData['data'] as List;
@@ -581,8 +590,13 @@ class GetDataKeranjang {
             linkGambar: item['link_gambar_varian'].toString(),
           );
         }).toList();
+      } else if (response.statusCode == 404) {
+        // Tangani keranjang kosong secara khusus
+        return [];
       } else {
-        throw Exception('Gagal mengambil data keranjang');
+        throw Exception(
+          'Gagal mengambil data keranjang (${response.statusCode})',
+        );
       }
     } catch (e) {
       throw Exception('Gagal mengambil data keranjang: $e');
@@ -592,14 +606,130 @@ class GetDataKeranjang {
 
 //class untuk menghapus data keranjang pembeli
 class HapusKeranjang {
-  String id;
+  final String id;
+
   HapusKeranjang({required this.id});
+
   static Future<HapusKeranjang> hapusKeranjang(String id) async {
-    Uri url = Uri.parse(
-      "https://192.168.1.96:3000/api/pembeliDeleteKeranjang/1$id", //diisi dengan id_varian_produk
+    final Uri url = Uri.parse(
+      "http://192.168.1.96:3000/api/pembeliDeleteKeranjang/$id",
     );
-    var hasilResponse = await http.delete(url);
-    var jsonData = jsonDecode(hasilResponse.body);
-    return HapusKeranjang(id: jsonData['id'].toString());
+
+    final response = await http.delete(url);
+
+    if (response.statusCode == 200) {
+      // Tidak perlu ambil 'id' dari response karena backend tidak mengirimkannya
+      return HapusKeranjang(id: id);
+    } else {
+      final jsonData = jsonDecode(response.body);
+      final pesan = jsonData['pesan'] ?? 'Terjadi kesalahan';
+      throw Exception('Gagal menghapus keranjang: $pesan');
+    }
+  }
+}
+
+//class untuk mendapatkan data metode pembayaran
+class GetDataMetodePembayaran {
+  String id;
+  String nama_metode;
+  String deskripsi;
+
+  GetDataMetodePembayaran({
+    required this.id,
+    required this.nama_metode,
+    required this.deskripsi,
+  });
+
+  static Future<List<GetDataMetodePembayaran>> getDataMetodePembayaran() async {
+    final response = await http.get(
+      Uri.parse('http://192.168.1.96:3000/api/adminTampilMetodePembayaran'),
+    );
+    try {
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final List<dynamic> data = jsonDecode(response.body)['data'];
+        return data
+            .map(
+              (item) => GetDataMetodePembayaran(
+                id: item['id'].toString(),
+                nama_metode: item['nama_metode'].toString(),
+                deskripsi: item['deskripsi'].toString(),
+              ),
+            )
+            .toList();
+      } else {
+        throw Exception(
+          'Failed to load payment methods, status code: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      throw Exception('Failed to load payment methods: $e');
+    }
+  }
+}
+
+//class untuk menambahkan data pembayaran pembeli
+class TambahPembayaran {
+  String id_metode_pembayaran;
+  String total_harga;
+  String nama_pengirim;
+  String bank_pengirim;
+  String alamat_pengiriman;
+  String bukti_pembayaran;
+
+  TambahPembayaran({
+    required this.id_metode_pembayaran,
+    required this.total_harga,
+    required this.nama_pengirim,
+    required this.bank_pengirim,
+    required this.alamat_pengiriman,
+    required this.bukti_pembayaran,
+  });
+
+  /// Method untuk mengirim data pembayaran ke server
+  static Future<String?> addPembayaran({
+    required String id_metode_pembayaran,
+    required String total_harga,
+    required String nama_pengirim,
+    required String bank_pengirim,
+    required String alamat_pengiriman,
+    required String bukti_pembayaran,
+  }) async {
+    const storage = FlutterSecureStorage();
+    var token = await storage.read(key: 'token');
+
+    if (token == null) {
+      throw Exception('Token tidak ditemukan. Silakan login terlebih dahulu.');
+    }
+
+    Uri url = Uri.parse("http://192.168.1.96:3000/api/upload");
+
+    var request =
+        http.MultipartRequest('POST', url)
+          ..headers['Authorization'] = 'Bearer $token'
+          ..fields['id_metode_pembayaran'] = id_metode_pembayaran
+          ..fields['total_harga'] = total_harga
+          ..fields['nama_pengirim'] = nama_pengirim
+          ..fields['bank_pengirim'] = bank_pengirim
+          ..fields['alamat_pengiriman'] = alamat_pengiriman
+          ..files.add(
+            await http.MultipartFile.fromPath(
+              'bukti_transfer', // sesuaikan dengan nama field di backend
+              bukti_pembayaran,
+            ),
+          );
+
+    try {
+      var response = await request.send();
+      var responseData = await http.Response.fromStream(response);
+      var jsonData = jsonDecode(responseData.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonData['pesan'] ?? 'Pembayaran berhasil ditambahkan';
+      } else {
+        throw Exception(jsonData['pesan'] ?? 'Gagal menambahkan pembayaran');
+      }
+    } catch (e) {
+      throw Exception('Gagal mengunggah bukti pembayaran: $e');
+    }
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/models/pembeli_model.dart';
 import 'package:frontend/pages/pembeli_pages/list_chat_admin.dart';
+import 'package:toastification/toastification.dart';
 
 const String baseUrl = "http://192.168.1.96:3000/uploads/";
 
@@ -358,11 +359,11 @@ class _DetailProdukState extends State<DetailProduk> {
 
   Future<void> handleAddToCart() async {
     if (selectedVariantIndex == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Pilih varian produk terlebih dahulu'),
-          backgroundColor: Colors.red,
-        ),
+      toastification.show(
+        context: context,
+        title: Text('Pilih varian produk terlebih dahulu'),
+        type: ToastificationType.error,
+        autoCloseDuration: const Duration(seconds: 3),
       );
       return;
     }
@@ -385,16 +386,27 @@ class _DetailProdukState extends State<DetailProduk> {
       );
 
       if (result != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result), backgroundColor: Colors.green),
+        toastification.show(
+          context: context,
+          title: Text(result),
+          type: ToastificationType.success,
+          autoCloseDuration: const Duration(seconds: 3),
         );
+
+        // Refresh halaman
+        setState(() {
+          futureProductDetail = GetDataDetailProduk.getDataDetailProduk(
+            widget.productId,
+          );
+          futureUlasan = GetDataUlasan.getDataUlasan(widget.productId);
+        });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal menambahkan ke keranjang: $e'),
-          backgroundColor: Colors.red,
-        ),
+      toastification.show(
+        context: context,
+        title: Text('Gagal menambahkan ke keranjang: $e'),
+        type: ToastificationType.error,
+        autoCloseDuration: const Duration(seconds: 3),
       );
     } finally {
       setState(() {
@@ -476,218 +488,312 @@ class _DetailProdukState extends State<DetailProduk> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
+    return ToastificationWrapper(
+      child: Scaffold(
         backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            onPressed: () {
+              Navigator.pop(context);
+            },
+          ),
         ),
-      ),
-      body: FutureBuilder<GetDataDetailProduk>(
-        future: futureProductDetail,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: Colors.black),
-            );
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData) {
-            return const Center(child: Text('Tidak ada data yang ditemukan'));
-          }
+        body: FutureBuilder<GetDataDetailProduk>(
+          future: futureProductDetail,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(color: Colors.black),
+              );
+            } else if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            } else if (!snapshot.hasData) {
+              return const Center(child: Text('Tidak ada data yang ditemukan'));
+            }
 
-          final product = snapshot.data!;
-          final uniqueSizes = getUniqueSizes(product.varian);
+            final product = snapshot.data!;
+            final uniqueSizes = getUniqueSizes(product.varian);
 
-          // If no variant is selected yet, select the first one
-          if (selectedVariantIndex == null && product.varian.isNotEmpty) {
-            selectedVariantIndex = 0;
-            selectedSize = product.varian[0].ukuran;
-          }
+            // If no variant is selected yet, select the first one
+            if (selectedVariantIndex == null && product.varian.isNotEmpty) {
+              selectedVariantIndex = 0;
+              selectedSize = product.varian[0].ukuran;
+            }
 
-          // Get current variant stock
-          int currentStock =
-              selectedVariantIndex != null
-                  ? product.varian[selectedVariantIndex!].stok
-                  : 0;
+            // Get current variant stock
+            int currentStock =
+                selectedVariantIndex != null
+                    ? product.varian[selectedVariantIndex!].stok
+                    : 0;
 
-          // Ensure jumlahOrder doesn't exceed stock
-          if (jumlahOrder > currentStock) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              setState(() {
-                jumlahOrder = currentStock > 0 ? 1 : 0;
+            // Ensure jumlahOrder doesn't exceed stock
+            if (jumlahOrder > currentStock) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                setState(() {
+                  jumlahOrder = currentStock > 0 ? 1 : 0;
+                });
               });
-            });
-          }
+            }
 
-          // Get unique color variants for the thumbnail selection
-          final Map<String, Varian> uniqueColorVariants = {};
-          for (var variant in product.varian) {
-            uniqueColorVariants[variant.warna] = variant;
-          }
+            // Get unique color variants for the thumbnail selection
+            final Map<String, Varian> uniqueColorVariants = {};
+            for (var variant in product.varian) {
+              uniqueColorVariants[variant.warna] = variant;
+            }
 
-          final List<Varian> colorVariants =
-              uniqueColorVariants.values.toList();
+            final List<Varian> colorVariants =
+                uniqueColorVariants.values.toList();
 
-          return SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Product Image
-                Container(
-                  height: 320,
-                  width: double.infinity,
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child:
-                        selectedVariantIndex != null
-                            ? Image.network(
-                              baseUrl +
-                                  product
-                                      .varian[selectedVariantIndex!]
-                                      .linkGambarVarian,
-                              fit: BoxFit.contain,
-                            )
-                            : Image.network(
-                              baseUrl + product.linkGambar,
-                              fit: BoxFit.contain,
-                            ),
-                  ),
-                ),
-
-                // Color Variants
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Warna',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children:
-                              colorVariants.map((variant) {
-                                bool isSelected =
-                                    selectedVariantIndex != null &&
+            return SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Product Image
+                  Container(
+                    height: 320,
+                    width: double.infinity,
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child:
+                          selectedVariantIndex != null
+                              ? Image.network(
+                                baseUrl +
                                     product
-                                            .varian[selectedVariantIndex!]
-                                            .warna ==
-                                        variant.warna;
+                                        .varian[selectedVariantIndex!]
+                                        .linkGambarVarian,
+                                fit: BoxFit.contain,
+                              )
+                              : Image.network(
+                                baseUrl + product.linkGambar,
+                                fit: BoxFit.contain,
+                              ),
+                    ),
+                  ),
 
-                                return GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      selectedVariantIndex = product.varian
-                                          .indexWhere(
-                                            (v) => v.warna == variant.warna,
-                                          );
-                                      selectedSize =
-                                          product
+                  // Color Variants
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Warna',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children:
+                                colorVariants.map((variant) {
+                                  bool isSelected =
+                                      selectedVariantIndex != null &&
+                                      product
                                               .varian[selectedVariantIndex!]
-                                              .ukuran;
-                                      // Reset quantity when variant changes
-                                      jumlahOrder = 1;
-                                    });
-                                  },
-                                  child: Container(
-                                    margin: const EdgeInsets.only(right: 12),
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                        color:
-                                            isSelected
-                                                ? Colors.black
-                                                : Colors.grey.shade300,
-                                        width: isSelected ? 2 : 1,
+                                              .warna ==
+                                          variant.warna;
+
+                                  return GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        selectedVariantIndex = product.varian
+                                            .indexWhere(
+                                              (v) => v.warna == variant.warna,
+                                            );
+                                        selectedSize =
+                                            product
+                                                .varian[selectedVariantIndex!]
+                                                .ukuran;
+                                        // Reset quantity when variant changes
+                                        jumlahOrder = 1;
+                                      });
+                                    },
+                                    child: Container(
+                                      margin: const EdgeInsets.only(right: 12),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                          color:
+                                              isSelected
+                                                  ? Colors.black
+                                                  : Colors.grey.shade300,
+                                          width: isSelected ? 2 : 1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(10),
-                                      child: Container(
-                                        width: 50,
-                                        height: 50,
-                                        color: Colors.grey.shade100,
-                                        child: Image.network(
-                                          baseUrl + variant.linkGambarVarian,
-                                          fit: BoxFit.cover,
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: Container(
+                                          width: 50,
+                                          height: 50,
+                                          color: Colors.grey.shade100,
+                                          child: Image.network(
+                                            baseUrl + variant.linkGambarVarian,
+                                            fit: BoxFit.cover,
+                                          ),
                                         ),
                                       ),
                                     ),
+                                  );
+                                }).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Product Info
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          product.namaProduk,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Updated Rating and Reviews section with proper empty handling
+                        FutureBuilder<List<GetDataUlasan>>(
+                          future: futureUlasan,
+                          builder: (context, ulasanSnapshot) {
+                            if (ulasanSnapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Memuat ulasan...',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              );
+                            }
+
+                            if (ulasanSnapshot.hasError) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Tidak ada ulasan',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              );
+                            }
+
+                            if (ulasanSnapshot.hasData) {
+                              final reviews = ulasanSnapshot.data!;
+
+                              // Check if reviews list is empty
+                              if (reviews.isEmpty) {
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.grey.shade200,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Belum ada ulasan',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
                                   ),
                                 );
-                              }).toList(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                              }
 
-                // Product Info
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        product.namaProduk,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
+                              double averageRating = 0;
+                              double totalRating = 0;
+                              for (var review in reviews) {
+                                totalRating +=
+                                    double.tryParse(review.rating) ?? 0;
+                              }
+                              averageRating = totalRating / reviews.length;
 
-                      // Updated Rating and Reviews section with proper empty handling
-                      FutureBuilder<List<GetDataUlasan>>(
-                        future: futureUlasan,
-                        builder: (context, ulasanSnapshot) {
-                          if (ulasanSnapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade50,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                'Memuat ulasan...',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade600,
+                              return GestureDetector(
+                                onTap: () => showReviewsPopup(context, reviews),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.grey.shade200,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      buildRatingStars(averageRating),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        '${averageRating.toStringAsFixed(1)} (${reviews.length}) · ${reviews.length} ulasan',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade700,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Icon(
+                                        Icons.chevron_right,
+                                        size: 16,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            );
-                          }
+                              );
+                            }
 
-                          if (ulasanSnapshot.hasError) {
                             return Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 12,
@@ -705,395 +811,309 @@ class _DetailProdukState extends State<DetailProduk> {
                                 ),
                               ),
                             );
-                          }
+                          },
+                        ),
 
-                          if (ulasanSnapshot.hasData) {
-                            final reviews = ulasanSnapshot.data!;
+                        const SizedBox(height: 16),
 
-                            // Check if reviews list is empty
-                            if (reviews.isEmpty) {
-                              return Container(
+                        // Price with discount
+                        Row(
+                          children: [
+                            Text(
+                              formatPrice(product.harga),
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            if (product.hargaAwal != product.harga) ...[
+                              Text(
+                                formatPrice(product.hargaAwal),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey.shade500,
+                                  decoration: TextDecoration.lineThrough,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
+                                  horizontal: 8,
+                                  vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.grey.shade50,
-                                  borderRadius: BorderRadius.circular(8),
+                                  color: Colors.red.shade50,
+                                  borderRadius: BorderRadius.circular(6),
                                   border: Border.all(
-                                    color: Colors.grey.shade200,
+                                    color: Colors.red.shade200,
                                   ),
                                 ),
                                 child: Text(
-                                  'Belum ada ulasan',
+                                  '-${calculateDiscount(product.harga, product.hargaAwal)}',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: Colors.grey.shade600,
+                                    color: Colors.red.shade700,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                              );
-                            }
-
-                            double averageRating = 0;
-                            double totalRating = 0;
-                            for (var review in reviews) {
-                              totalRating +=
-                                  double.tryParse(review.rating) ?? 0;
-                            }
-                            averageRating = totalRating / reviews.length;
-
-                            return GestureDetector(
-                              onTap: () => showReviewsPopup(context, reviews),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade50,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: Colors.grey.shade200,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    buildRatingStars(averageRating),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      '${averageRating.toStringAsFixed(1)} (${reviews.length}) · ${reviews.length} ulasan',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade700,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Icon(
-                                      Icons.chevron_right,
-                                      size: 16,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ],
-                                ),
                               ),
-                            );
-                          }
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
 
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              'Tidak ada ulasan',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Price with discount
-                      Row(
-                        children: [
-                          Text(
-                            formatPrice(product.harga),
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          if (product.hargaAwal != product.harga) ...[
-                            Text(
-                              formatPrice(product.hargaAwal),
+                  // Size Selection
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Pilih Ukuran',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.grey.shade500,
-                                decoration: TextDecoration.lineThrough,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.red.shade50,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: Colors.red.shade200),
-                              ),
-                              child: Text(
-                                '-${calculateDiscount(product.harga, product.hargaAwal)}',
+                            TextButton(
+                              onPressed: () {
+                                showDescriptionPopup(
+                                  context,
+                                  product.deskripsi,
+                                  product.namaProduk,
+                                );
+                              },
+                              child: const Text(
+                                'Deskripsi Produk',
                                 style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.red.shade700,
-                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ),
                           ],
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+                        ),
+                        const SizedBox(height: 12),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children:
+                                uniqueSizes.map((size) {
+                                  bool isSelected = selectedSize == size;
 
-                // Size Selection
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Pilih Ukuran',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              showDescriptionPopup(
-                                context,
-                                product.deskripsi,
-                                product.namaProduk,
-                              );
-                            },
-                            child: const Text(
-                              'Deskripsi Produk',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children:
-                              uniqueSizes.map((size) {
-                                bool isSelected = selectedSize == size;
+                                  // Check if there's stock for this size in the current color
+                                  bool hasStock = false;
+                                  if (selectedVariantIndex != null) {
+                                    String currentColor =
+                                        product
+                                            .varian[selectedVariantIndex!]
+                                            .warna;
+                                    hasStock = product.varian.any(
+                                      (v) =>
+                                          v.ukuran == size &&
+                                          v.warna == currentColor &&
+                                          v.stok > 0,
+                                    );
+                                  }
 
-                                // Check if there's stock for this size in the current color
-                                bool hasStock = false;
-                                if (selectedVariantIndex != null) {
-                                  String currentColor =
-                                      product
-                                          .varian[selectedVariantIndex!]
-                                          .warna;
-                                  hasStock = product.varian.any(
-                                    (v) =>
-                                        v.ukuran == size &&
-                                        v.warna == currentColor &&
-                                        v.stok > 0,
-                                  );
-                                }
-
-                                return GestureDetector(
-                                  onTap:
-                                      hasStock
-                                          ? () {
-                                            setState(() {
-                                              selectedSize = size;
-                                              if (selectedVariantIndex !=
-                                                  null) {
-                                                String currentColor =
-                                                    product
-                                                        .varian[selectedVariantIndex!]
-                                                        .warna;
-                                                int index = product.varian
-                                                    .indexWhere(
-                                                      (v) =>
-                                                          v.ukuran == size &&
-                                                          v.warna ==
-                                                              currentColor,
-                                                    );
-                                                if (index != -1) {
-                                                  selectedVariantIndex = index;
-                                                  // Reset quantity when size changes
-                                                  jumlahOrder = 1;
+                                  return GestureDetector(
+                                    onTap:
+                                        hasStock
+                                            ? () {
+                                              setState(() {
+                                                selectedSize = size;
+                                                if (selectedVariantIndex !=
+                                                    null) {
+                                                  String currentColor =
+                                                      product
+                                                          .varian[selectedVariantIndex!]
+                                                          .warna;
+                                                  int index = product.varian
+                                                      .indexWhere(
+                                                        (v) =>
+                                                            v.ukuran == size &&
+                                                            v.warna ==
+                                                                currentColor,
+                                                      );
+                                                  if (index != -1) {
+                                                    selectedVariantIndex =
+                                                        index;
+                                                    // Reset quantity when size changes
+                                                    jumlahOrder = 1;
+                                                  }
                                                 }
-                                              }
-                                            });
-                                          }
-                                          : null,
-                                  child: Container(
-                                    margin: const EdgeInsets.only(right: 12),
-                                    width: 50,
-                                    height: 50,
-                                    decoration: BoxDecoration(
-                                      color:
-                                          isSelected
-                                              ? Colors.black
-                                              : Colors.white,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
+                                              });
+                                            }
+                                            : null,
+                                    child: Container(
+                                      margin: const EdgeInsets.only(right: 12),
+                                      width: 50,
+                                      height: 50,
+                                      decoration: BoxDecoration(
                                         color:
-                                            hasStock
-                                                ? (isSelected
-                                                    ? Colors.black
-                                                    : Colors.grey.shade300)
-                                                : Colors.grey.shade200,
-                                      ),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        size.toString(),
-                                        style: TextStyle(
+                                            isSelected
+                                                ? Colors.black
+                                                : Colors.white,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
                                           color:
-                                              isSelected
-                                                  ? Colors.white
-                                                  : (hasStock
+                                              hasStock
+                                                  ? (isSelected
                                                       ? Colors.black
-                                                      : Colors.grey.shade400),
-                                          fontWeight: FontWeight.bold,
+                                                      : Colors.grey.shade300)
+                                                  : Colors.grey.shade200,
+                                        ),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          size.toString(),
+                                          style: TextStyle(
+                                            color:
+                                                isSelected
+                                                    ? Colors.white
+                                                    : (hasStock
+                                                        ? Colors.black
+                                                        : Colors.grey.shade400),
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                );
-                              }).toList(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Quantity Selector
-                if (currentStock > 0) ...[
-                  buildQuantitySelector(currentStock),
-                  const SizedBox(height: 24),
-                ] else ...[
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.warning_amber, color: Colors.red.shade600),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Stok habis untuk varian ini',
-                            style: TextStyle(
-                              color: Colors.red.shade700,
-                              fontWeight: FontWeight.w500,
-                            ),
+                                  );
+                                }).toList(),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
+
                   const SizedBox(height: 24),
-                ],
 
-                // Action Buttons
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      // Chat Button
-                      Container(
-                        width: 56,
-                        height: 56,
+                  // Quantity Selector
+                  if (currentStock > 0) ...[
+                    buildQuantitySelector(currentStock),
+                    const SizedBox(height: 24),
+                  ] else ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.red.shade200),
                         ),
-                        child: IconButton(
-                          onPressed: () {
-                            showChatWithAdmin(context);
-                          },
-                          icon: Icon(
-                            Icons.chat_bubble_outline,
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-
-                      // Add to Cart Button
-                      Expanded(
-                        child: SizedBox(
-                          height: 56,
-                          child: OutlinedButton(
-                            onPressed:
-                                currentStock > 0 && !isAddingToCart
-                                    ? handleAddToCart
-                                    : null,
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(
-                                color:
-                                    currentStock > 0
-                                        ? Colors.black
-                                        : Colors.grey.shade300,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              backgroundColor:
-                                  currentStock > 0
-                                      ? Colors.white
-                                      : Colors.grey.shade100,
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.warning_amber,
+                              color: Colors.red.shade600,
                             ),
-                            child:
-                                isAddingToCart
-                                    ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.black,
-                                      ),
-                                    )
-                                    : Text(
-                                      currentStock > 0
-                                          ? 'Tambah ke Keranjang'
-                                          : 'Stok Habis',
-                                      style: TextStyle(
-                                        color:
-                                            currentStock > 0
-                                                ? Colors.black
-                                                : Colors.grey.shade500,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                          ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Stok habis untuk varian ini',
+                              style: TextStyle(
+                                color: Colors.red.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+
+                  // Action Buttons
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      children: [
+                        // Chat Button
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: IconButton(
+                            onPressed: () {
+                              showChatWithAdmin(context);
+                            },
+                            icon: Icon(
+                              Icons.chat_bubble_outline,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+
+                        // Add to Cart Button
+                        Expanded(
+                          child: SizedBox(
+                            height: 56,
+                            child: OutlinedButton(
+                              onPressed:
+                                  currentStock > 0 && !isAddingToCart
+                                      ? handleAddToCart
+                                      : null,
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(
+                                  color:
+                                      currentStock > 0
+                                          ? Colors.black
+                                          : Colors.grey.shade300,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                backgroundColor:
+                                    currentStock > 0
+                                        ? Colors.white
+                                        : Colors.grey.shade100,
+                              ),
+                              child:
+                                  isAddingToCart
+                                      ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.black,
+                                        ),
+                                      )
+                                      : Text(
+                                        currentStock > 0
+                                            ? 'Tambah ke Keranjang'
+                                            : 'Stok Habis',
+                                        style: TextStyle(
+                                          color:
+                                              currentStock > 0
+                                                  ? Colors.black
+                                                  : Colors.grey.shade500,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
-        },
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
