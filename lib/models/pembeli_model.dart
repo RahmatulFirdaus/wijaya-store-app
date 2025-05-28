@@ -735,3 +735,124 @@ class TambahPembayaran {
     }
   }
 }
+
+//class untuk menampilkan riwayat transaksi pembeli
+class GetRiwayatTransaksi {
+  String namaPengirim;
+  String bankPengirim;
+  String tanggalTransfer;
+  String status;
+  String? catatanAdmin;
+  int idOrderan;
+
+  GetRiwayatTransaksi({
+    required this.namaPengirim,
+    required this.bankPengirim,
+    required this.tanggalTransfer,
+    required this.status,
+    this.catatanAdmin,
+    required this.idOrderan,
+  });
+
+  static Future<List<GetRiwayatTransaksi>> getRiwayatTransaksi() async {
+    const storage = FlutterSecureStorage();
+    var token = await storage.read(key: 'token');
+
+    Uri url = Uri.parse("http://192.168.1.96:3000/api/pembeliRiwayatTransaksi");
+    try {
+      var response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final List<dynamic> data = jsonDecode(response.body)['data'];
+        return data
+            .map(
+              (item) => GetRiwayatTransaksi(
+                namaPengirim: item['nama_pengirim'] ?? '',
+                bankPengirim: item['bank_pengirim'] ?? '',
+                tanggalTransfer: item['tanggal_transfer'] ?? '',
+                status: item['status'] ?? '',
+                catatanAdmin: item['catatan_admin'],
+                idOrderan: item['id_orderan'],
+              ),
+            )
+            .toList();
+      } else {
+        throw Exception(
+          'Failed to load transaction history, status code: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      throw Exception('Failed to load transaction history: $e');
+    }
+  }
+}
+
+//class untuk menampilkan data pengguna
+class GetDataPengguna {
+  String id;
+  String nama;
+  String username;
+  String password;
+  String email;
+  String nomorTelp;
+  String role;
+
+  GetDataPengguna({
+    required this.id,
+    required this.nama,
+    required this.username,
+    required this.password,
+    required this.email,
+    required this.nomorTelp,
+    required this.role,
+  });
+
+  static Future<GetDataPengguna> getDataPengguna() async {
+    const storage = FlutterSecureStorage();
+    var token = await storage.read(key: 'token');
+    Uri url = Uri.parse("http://192.168.1.96:3000/api/pembeliProfile");
+
+    try {
+      var response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        var jsonData = jsonDecode(response.body);
+        var dataList = jsonData['data'] as List;
+
+        if (dataList.isEmpty) {
+          throw Exception('User data is empty');
+        }
+
+        var data = dataList.first;
+
+        return GetDataPengguna(
+          id: data['id'].toString(),
+          nama: data['nama'].toString(),
+          username: data['username'].toString(),
+          password: data['password'].toString(),
+          email: data['email'].toString(),
+          nomorTelp: data['nomor_telp'].toString(),
+          role: data['role'].toString(),
+        );
+      } else {
+        throw Exception(
+          'Failed to load user data, status code: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      throw Exception('Failed to load user data: $e');
+    }
+  }
+}

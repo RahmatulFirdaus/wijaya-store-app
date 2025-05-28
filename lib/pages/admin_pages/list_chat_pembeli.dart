@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/models/pembeli_model.dart';
 import 'package:frontend/pages/chat_pages/chat.dart';
+import 'package:toastification/toastification.dart';
 
 class PembeliListPage extends StatefulWidget {
   @override
@@ -28,11 +29,16 @@ class _PembeliListPageState extends State<PembeliListPage> {
       setState(() {
         isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal memuat data pembeli: $e'),
-          backgroundColor: Colors.red,
-        ),
+      toastification.show(
+        context: context,
+        type: ToastificationType.error,
+        style: ToastificationStyle.fillColored,
+        title: Text('Error'),
+        description: Text('Gagal memuat data pembeli: $e'),
+        alignment: Alignment.topRight,
+        autoCloseDuration: const Duration(seconds: 4),
+        showProgressBar: true,
+        dragToClose: true,
       );
     }
   }

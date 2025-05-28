@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/models/pembeli_model.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:toastification/toastification.dart';
 import 'dart:io';
 
 class PembayaranPembeli extends StatefulWidget {
@@ -24,6 +25,9 @@ class _PembayaranPembeliState extends State<PembayaranPembeli>
   bool _isLoading = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+
+  // Maximum number of images allowed
+  static const int _maxImages = 5;
 
   @override
   void initState() {
@@ -50,11 +54,17 @@ class _PembayaranPembeliState extends State<PembayaranPembeli>
         }
       });
     } catch (e) {
-      _showSnackBar('Gagal memuat metode pembayaran: $e', isError: true);
+      _showToast('Gagal memuat metode pembayaran: $e', isError: true);
     }
   }
 
   Future<void> _pilihFoto() async {
+    // Check if already at maximum limit
+    if (_buktiTransferList.length >= _maxImages) {
+      _showToast('Maksimal $_maxImages gambar dapat diupload', isError: true);
+      return;
+    }
+
     final ImagePicker picker = ImagePicker();
 
     showModalBottomSheet(
@@ -96,9 +106,11 @@ class _PembayaranPembeliState extends State<PembayaranPembeli>
                         label: 'Galeri',
                         onPressed: () async {
                           Navigator.pop(context);
+                          final int remainingSlots =
+                              _maxImages - _buktiTransferList.length;
                           final List<XFile> images =
                               await picker.pickMultiImage();
-                          await _processSelectedImages(images);
+                          await _processSelectedImages(images, remainingSlots);
                         },
                       ),
                     ),
@@ -113,7 +125,7 @@ class _PembayaranPembeliState extends State<PembayaranPembeli>
                             source: ImageSource.camera,
                           );
                           if (image != null) {
-                            await _processSelectedImages([image]);
+                            await _processSelectedImages([image], 1);
                           }
                         },
                       ),
@@ -161,19 +173,26 @@ class _PembayaranPembeliState extends State<PembayaranPembeli>
     );
   }
 
-  Future<void> _processSelectedImages(List<XFile> images) async {
+  Future<void> _processSelectedImages(
+    List<XFile> images,
+    int maxAllowed,
+  ) async {
     final List<File> validImages = [];
     final allowedExtensions = ['jpg', 'jpeg', 'png'];
+    int processedCount = 0;
 
     for (final image in images) {
+      if (processedCount >= maxAllowed) break;
+
       final fileExtension = image.path.split('.').last.toLowerCase();
       if (allowedExtensions.contains(fileExtension)) {
         validImages.add(File(image.path));
+        processedCount++;
       }
     }
 
     if (validImages.isEmpty && images.isNotEmpty) {
-      _showSnackBar(
+      _showToast(
         'Format gambar tidak didukung. Hanya JPG, JPEG, atau PNG.',
         isError: true,
       );
@@ -184,10 +203,21 @@ class _PembayaranPembeliState extends State<PembayaranPembeli>
       _buktiTransferList.addAll(validImages);
     });
 
-    if (validImages.length != images.length) {
-      _showSnackBar(
+    // Show messages for various scenarios
+    if (images.length > maxAllowed) {
+      _showToast(
+        'Hanya ${validImages.length} gambar yang ditambahkan. Maksimal $_maxImages gambar.',
+        isError: true,
+      );
+    } else if (validImages.length != images.length) {
+      _showToast(
         'Beberapa gambar tidak dapat ditambahkan karena format tidak didukung.',
         isError: true,
+      );
+    } else if (validImages.isNotEmpty) {
+      _showToast(
+        '${validImages.length} gambar berhasil ditambahkan',
+        isError: false,
       );
     }
   }
@@ -196,18 +226,19 @@ class _PembayaranPembeliState extends State<PembayaranPembeli>
     setState(() {
       _buktiTransferList.removeAt(index);
     });
+    _showToast('Gambar berhasil dihapus', isError: false);
   }
 
   Future<void> _submitPembayaran() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (_buktiTransferList.isEmpty) {
-      _showSnackBar('Harap pilih minimal satu bukti pembayaran', isError: true);
+      _showToast('Harap pilih minimal satu bukti pembayaran', isError: true);
       return;
     }
 
     if (_selectedMetodePembayaran == null) {
-      _showSnackBar('Harap pilih metode pembayaran', isError: true);
+      _showToast('Harap pilih metode pembayaran', isError: true);
       return;
     }
 
@@ -230,13 +261,10 @@ class _PembayaranPembeliState extends State<PembayaranPembeli>
                 .path, // Perlu dimodifikasi untuk multiple files
       );
 
-      _showSnackBar(
-        result ?? 'Pembayaran berhasil ditambahkan',
-        isError: false,
-      );
+      _showToast(result ?? 'Pembayaran berhasil ditambahkan', isError: false);
       Navigator.pop(context);
     } catch (e) {
-      _showSnackBar('Error: $e', isError: true);
+      _showToast('Error: $e', isError: true);
     } finally {
       setState(() {
         _isLoading = false;
@@ -244,15 +272,41 @@ class _PembayaranPembeliState extends State<PembayaranPembeli>
     }
   }
 
-  void _showSnackBar(String message, {required bool isError}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.red[600] : Colors.green[600],
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        margin: const EdgeInsets.all(16),
+  void _showToast(String message, {required bool isError}) {
+    toastification.show(
+      context: context,
+      type: isError ? ToastificationType.error : ToastificationType.success,
+      style: ToastificationStyle.fillColored,
+      title: Text(
+        isError ? 'Error' : 'Success',
+        style: const TextStyle(fontWeight: FontWeight.w600),
       ),
+      description: Text(message),
+      alignment: Alignment.topCenter,
+      autoCloseDuration: const Duration(seconds: 4),
+      animationDuration: const Duration(milliseconds: 300),
+      icon: Icon(isError ? Icons.error : Icons.check_circle),
+      showIcon: true,
+      primaryColor: isError ? Colors.red : Colors.green,
+      backgroundColor: Colors.white,
+      foregroundColor: isError ? Colors.red : Colors.green,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x07000000),
+          blurRadius: 16,
+          offset: Offset(0, 16),
+          spreadRadius: 0,
+        ),
+      ],
+      showProgressBar: true,
+      closeButtonShowType: CloseButtonShowType.onHover,
+      closeOnClick: false,
+      pauseOnHover: true,
+      dragToClose: true,
+      applyBlurEffect: true,
     );
   }
 
@@ -439,7 +493,23 @@ class _PembayaranPembeliState extends State<PembayaranPembeli>
                 const SizedBox(height: 32),
 
                 // Upload Bukti Transfer
-                _buildSectionTitle('Bukti Pembayaran'),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildSectionTitle('Bukti Pembayaran'),
+                    Text(
+                      '${_buktiTransferList.length}/$_maxImages',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color:
+                            _buktiTransferList.length >= _maxImages
+                                ? Colors.red[600]
+                                : Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
 
                 // Grid gambar yang sudah dipilih
@@ -505,14 +575,24 @@ class _PembayaranPembeliState extends State<PembayaranPembeli>
                   height: 120,
                   decoration: BoxDecoration(
                     border: Border.all(
-                      color: Colors.grey[300]!,
+                      color:
+                          _buktiTransferList.length >= _maxImages
+                              ? Colors.grey[400]!
+                              : Colors.grey[300]!,
                       style: BorderStyle.solid,
                       width: 2,
                     ),
                     borderRadius: BorderRadius.circular(12),
+                    color:
+                        _buktiTransferList.length >= _maxImages
+                            ? Colors.grey[100]
+                            : null,
                   ),
                   child: InkWell(
-                    onTap: _pilihFoto,
+                    onTap:
+                        _buktiTransferList.length >= _maxImages
+                            ? null
+                            : _pilihFoto,
                     borderRadius: BorderRadius.circular(12),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -520,22 +600,33 @@ class _PembayaranPembeliState extends State<PembayaranPembeli>
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.grey[100],
+                            color:
+                                _buktiTransferList.length >= _maxImages
+                                    ? Colors.grey[200]
+                                    : Colors.grey[100],
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.add_photo_alternate_outlined,
                             size: 32,
-                            color: Colors.black54,
+                            color:
+                                _buktiTransferList.length >= _maxImages
+                                    ? Colors.grey[400]
+                                    : Colors.black54,
                           ),
                         ),
                         const SizedBox(height: 12),
-                        const Text(
-                          'Tambah Bukti Pembayaran',
+                        Text(
+                          _buktiTransferList.length >= _maxImages
+                              ? 'Maksimal $_maxImages Gambar'
+                              : 'Tambah Bukti Pembayaran',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: Colors.black,
+                            color:
+                                _buktiTransferList.length >= _maxImages
+                                    ? Colors.grey[500]
+                                    : Colors.black,
                           ),
                         ),
                         const SizedBox(height: 4),

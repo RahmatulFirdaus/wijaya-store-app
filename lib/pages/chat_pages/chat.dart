@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:frontend/models/pembeli_model.dart';
+import 'package:toastification/toastification.dart';
 
 class ChatPage extends StatefulWidget {
   final String recipientId;
@@ -83,15 +84,16 @@ class _ChatPageState extends State<ChatPage> {
         setState(() {
           isLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal memuat pesan: $e'),
-            backgroundColor: Colors.black87,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
+        toastification.show(
+          context: context,
+          type: ToastificationType.error,
+          style: ToastificationStyle.fillColored,
+          title: Text('Error'),
+          description: Text('Gagal memuat pesan: $e'),
+          alignment: Alignment.topCenter,
+          autoCloseDuration: const Duration(seconds: 4),
+          borderRadius: BorderRadius.circular(12.0),
+          showProgressBar: false,
         );
       }
     }
@@ -137,15 +139,16 @@ class _ChatPageState extends State<ChatPage> {
       messageController.text = messageText;
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal mengirim pesan: $e'),
-            backgroundColor: Colors.black87,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
+        toastification.show(
+          context: context,
+          type: ToastificationType.error,
+          style: ToastificationStyle.fillColored,
+          title: Text('Error'),
+          description: Text('Gagal mengirim pesan: $e'),
+          alignment: Alignment.topCenter,
+          autoCloseDuration: const Duration(seconds: 4),
+          borderRadius: BorderRadius.circular(12.0),
+          showProgressBar: false,
         );
       }
     }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/models/pembeli_model.dart';
 import 'package:frontend/pages/chat_pages/chat.dart';
+import 'package:toastification/toastification.dart';
 
 class AdminListPage extends StatefulWidget {
   @override
@@ -28,11 +29,20 @@ class _AdminListPageState extends State<AdminListPage> {
       setState(() {
         isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal memuat data admin: $e'),
-          backgroundColor: Colors.red,
-        ),
+      toastification.show(
+        context: context,
+        type: ToastificationType.error,
+        style: ToastificationStyle.fillColored,
+        title: Text('Error'),
+        description: Text('Gagal memuat data admin: $e'),
+        alignment: Alignment.topRight,
+        autoCloseDuration: const Duration(seconds: 4),
+        borderRadius: BorderRadius.circular(12.0),
+        boxShadow: highModeShadow,
+        closeButtonShowType: CloseButtonShowType.onHover,
+        closeOnClick: false,
+        pauseOnHover: true,
+        dragToClose: true,
       );
     }
   }
