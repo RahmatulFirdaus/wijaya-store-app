@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/models/pembeli_model.dart';
+import 'package:frontend/pages/pembeli_pages/detail_riwayat_transaksi.dart';
 
 class RiwayatTransaksiPembeli extends StatefulWidget {
   const RiwayatTransaksiPembeli({super.key});
@@ -92,6 +93,14 @@ class _RiwayatTransaksiPembeliState extends State<RiwayatTransaksiPembeli> {
     );
   }
 
+  // Method untuk navigasi ke halaman detail terpisah
+  void _navigateToTransactionDetail(GetRiwayatTransaksi transaction) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => DetailRiwayatTransaksi()),
+    );
+  }
+
   Widget _buildTransactionCard(GetRiwayatTransaksi transaction) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -112,74 +121,22 @@ class _RiwayatTransaksiPembeliState extends State<RiwayatTransaksiPembeli> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header dengan ID dan Status
+            // Header dengan Status
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                Expanded(
                   child: Text(
-                    'ID: ${transaction.idOrderan}',
+                    transaction.namaPengirim,
                     style: const TextStyle(
-                      color: Colors.white,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                      color: Colors.black87,
                     ),
                   ),
                 ),
-                _buildStatusWidget(transaction.status),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            // Info Pengirim
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.person_outline,
-                    size: 20,
-                    color: Colors.black87,
-                  ),
-                ),
                 const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Nama Pengirim',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        transaction.namaPengirim,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                _buildStatusWidget(transaction.status),
               ],
             ),
 
@@ -278,54 +235,103 @@ class _RiwayatTransaksiPembeliState extends State<RiwayatTransaksiPembeli> {
               ],
             ),
 
-            // Catatan Admin (jika ada)
+            // Catatan Admin (jika ada) - tampilkan isi catatan lengkap
             if (transaction.catatanAdmin != null &&
                 transaction.catatanAdmin!.isNotEmpty) ...[
               const SizedBox(height: 16),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.amber.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.amber.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.amber.withOpacity(0.3)),
                 ),
-                child: Row(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.admin_panel_settings,
-                      size: 20,
-                      color: Colors.amber.shade700,
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Icon(
+                            Icons.admin_panel_settings,
+                            size: 18,
+                            color: Colors.amber.shade700,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Catatan Admin',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.amber.shade800,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Catatan Admin',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.amber.shade700,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            transaction.catatanAdmin!,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ],
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Colors.amber.withOpacity(0.2),
+                        ),
+                      ),
+                      child: Text(
+                        transaction.catatanAdmin!,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.black87,
+                          height: 1.4,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
             ],
+
+            const SizedBox(height: 16),
+
+            // Tombol Lihat Detail - menggunakan navigasi ke halaman terpisah
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => _navigateToTransactionDetail(transaction),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black87,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.visibility_outlined, size: 18),
+                    SizedBox(width: 8),
+                    Text(
+                      'Lihat Detail',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),

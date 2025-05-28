@@ -743,7 +743,7 @@ class GetRiwayatTransaksi {
   String tanggalTransfer;
   String status;
   String? catatanAdmin;
-  int idOrderan;
+  String idOrderan;
 
   GetRiwayatTransaksi({
     required this.namaPengirim,
@@ -778,7 +778,7 @@ class GetRiwayatTransaksi {
                 tanggalTransfer: item['tanggal_transfer'] ?? '',
                 status: item['status'] ?? '',
                 catatanAdmin: item['catatan_admin'],
-                idOrderan: item['id_orderan'],
+                idOrderan: item['id_orderan'].toString(),
               ),
             )
             .toList();
@@ -853,6 +853,142 @@ class GetDataPengguna {
       }
     } catch (e) {
       throw Exception('Failed to load user data: $e');
+    }
+  }
+}
+
+//class untuk memperbarui profil pengguna
+class UpdateProfileService {
+  final String baseUrl = 'http://192.168.1.96:3000/api';
+  final String token; // JWT Token untuk autentikasi
+
+  UpdateProfileService({required this.token});
+
+  Future<String?> _patchProfileData(
+    String endpoint,
+    Map<String, dynamic> data,
+  ) async {
+    final url = Uri.parse('$baseUrl/$endpoint');
+
+    try {
+      final response = await http.patch(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token', // Sertakan token di header
+        },
+        body: jsonEncode(data),
+      );
+
+      final jsonData = jsonDecode(response.body);
+      return jsonData['pesan'];
+    } catch (e) {
+      print('Error: $e');
+      return 'Terjadi kesalahan';
+    }
+  }
+
+  Future<String?> updatePassword(String password) {
+    return _patchProfileData('pembeliUpdateProfilePassword', {
+      'password': password,
+    });
+  }
+
+  Future<String?> updateNama(String nama) {
+    return _patchProfileData('pembeliUpdateProfileNama', {'nama': nama});
+  }
+
+  Future<String?> updateNomorTelepon(String nomorTelp) {
+    return _patchProfileData('pembeliUpdateProfileNomorTelepon', {
+      'nomor_telp': nomorTelp,
+    });
+  }
+
+  Future<String?> updateEmail(String email) {
+    return _patchProfileData('pembeliUpdateProfileEmail', {'email': email});
+  }
+}
+
+//class untuk mengecek status orderan berdasarkan id_orderan
+class StatusOrder {
+  final String status;
+
+  StatusOrder({required this.status});
+
+  factory StatusOrder.fromJson(Map<String, dynamic> json) {
+    return StatusOrder(status: json['status'].toString());
+  }
+
+  static Future<StatusOrder> fetchStatusOrder(String id) async {
+    final url = Uri.parse('http://192.168.1.96:3000/api/pembeliCekStatus/$id');
+
+    final response = await http.get(url);
+
+    try {
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body)['data'];
+
+        if (data is List && data.isNotEmpty) {
+          return StatusOrder.fromJson(data[0]);
+        } else {
+          throw Exception('Data status kosong');
+        }
+      } else {
+        throw Exception('Gagal mengambil status: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Terjadi kesalahan saat mengambil status: $e');
+    }
+  }
+}
+
+//class untuk menampilkan detail riwayat transaksi pembeli
+class RiwayatTransaksiDetail {
+  final String namaProduk;
+  final String warna;
+  final int ukuran;
+  final int jumlah;
+  final String harga;
+  final String linkGambarVarian;
+
+  RiwayatTransaksiDetail({
+    required this.namaProduk,
+    required this.warna,
+    required this.ukuran,
+    required this.jumlah,
+    required this.harga,
+    required this.linkGambarVarian,
+  });
+
+  factory RiwayatTransaksiDetail.fromJson(Map<String, dynamic> json) {
+    return RiwayatTransaksiDetail(
+      namaProduk: json['nama_produk'] ?? '',
+      warna: json['warna'] ?? '',
+      ukuran: json['ukuran'] ?? 0,
+      jumlah: json['jumlah'] ?? 0,
+      harga: json['harga'] ?? '0',
+      linkGambarVarian: json['link_gambar_varian'] ?? '',
+    );
+  }
+
+  static Future<List<RiwayatTransaksiDetail>> fetchDetail(String id) async {
+    final response = await http.get(
+      Uri.parse(
+        'http://192.168.1.96:3000/api/pembeliRiwayatTransaksiDetail/$id',
+      ),
+    );
+
+    try {
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body)['data'];
+        return data
+            .map((item) => RiwayatTransaksiDetail.fromJson(item))
+            .toList();
+      } else {
+        throw Exception('Gagal mengambil data: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Terjadi kesalahan: $e');
     }
   }
 }

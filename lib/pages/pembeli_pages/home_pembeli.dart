@@ -76,7 +76,7 @@ class _HomePembeliState extends State<HomePembeli> {
           "WIJAYA STORE",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        centerTitle: true, // Center the title
+        centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0.5,
       ),
@@ -102,7 +102,7 @@ class _HomePembeliState extends State<HomePembeli> {
             ),
           ),
 
-          // Featured Product Banner (bisa kamu update nanti)
+          // Featured Product Banner
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Container(
@@ -162,7 +162,7 @@ class _HomePembeliState extends State<HomePembeli> {
             ),
           ),
 
-          // New Arrival Section
+          // Products Section
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: 16.0,
@@ -205,7 +205,7 @@ class _HomePembeliState extends State<HomePembeli> {
             ),
           ),
 
-          // Product Grid
+          // Product Grid - Add bottom padding to prevent overlap with bottom nav
           Expanded(
             child: FutureBuilder<List<GetDataProduk>>(
               future: _productsFuture,
@@ -246,11 +246,16 @@ class _HomePembeliState extends State<HomePembeli> {
                     );
                   }
                   return GridView.builder(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.only(
+                      left: 16,
+                      right: 16,
+                      top: 16,
+                      bottom: 100, // Add extra bottom padding for bottom nav
+                    ),
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
-                          childAspectRatio: 0.6, // Diperbesar agar lebih tinggi
+                          childAspectRatio: 0.6,
                           crossAxisSpacing: 16,
                           mainAxisSpacing: 16,
                         ),
@@ -308,7 +313,6 @@ class ProductCard extends StatelessWidget {
                 },
               ),
             ),
-            // Expanded section to prevent overflow
             Expanded(
               child: Container(
                 color: Colors.white,

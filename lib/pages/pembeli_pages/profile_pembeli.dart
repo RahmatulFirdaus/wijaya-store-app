@@ -67,6 +67,452 @@ class GetDataPengguna {
   }
 }
 
+// Class untuk memperbarui profil pengguna
+class UpdateProfileService {
+  final String baseUrl = 'http://192.168.1.96:3000/api';
+  final String token;
+
+  UpdateProfileService({required this.token});
+
+  Future<String?> _patchProfileData(
+    String endpoint,
+    Map<String, dynamic> data,
+  ) async {
+    final url = Uri.parse('$baseUrl/$endpoint');
+
+    try {
+      final response = await http.patch(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(data),
+      );
+
+      final jsonData = jsonDecode(response.body);
+      return jsonData['pesan'];
+    } catch (e) {
+      print('Error: $e');
+      return 'Terjadi kesalahan';
+    }
+  }
+
+  Future<String?> updatePassword(String password) {
+    return _patchProfileData('pembeliUpdateProfilePassword', {
+      'password': password,
+    });
+  }
+
+  Future<String?> updateNama(String nama) {
+    return _patchProfileData('pembeliUpdateProfileNama', {'nama': nama});
+  }
+
+  Future<String?> updateNomorTelepon(String nomorTelp) {
+    return _patchProfileData('pembeliUpdateProfileNomorTelepon', {
+      'nomor_telp': nomorTelp,
+    });
+  }
+
+  Future<String?> updateEmail(String email) {
+    return _patchProfileData('pembeliUpdateProfileEmail', {'email': email});
+  }
+}
+
+// Halaman Edit Profile
+class EditProfilePage extends StatefulWidget {
+  final GetDataPengguna userData;
+  final VoidCallback onProfileUpdated;
+
+  const EditProfilePage({
+    super.key,
+    required this.userData,
+    required this.onProfileUpdated,
+  });
+
+  @override
+  State<EditProfilePage> createState() => _EditProfilePageState();
+}
+
+class _EditProfilePageState extends State<EditProfilePage> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _namaController;
+  late TextEditingController _emailController;
+  late TextEditingController _nomorTelpController;
+  late TextEditingController _passwordController;
+
+  bool _isLoading = false;
+  bool _obscurePassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _namaController = TextEditingController(text: widget.userData.nama);
+    _emailController = TextEditingController(text: widget.userData.email);
+    _nomorTelpController = TextEditingController(
+      text: widget.userData.nomorTelp,
+    );
+    _passwordController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _namaController.dispose();
+    _emailController.dispose();
+    _nomorTelpController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _updateProfile() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      const storage = FlutterSecureStorage();
+      final token = await storage.read(key: 'token');
+
+      if (token == null) {
+        throw Exception('Token not found');
+      }
+
+      final updateService = UpdateProfileService(token: token);
+      List<String> updateResults = [];
+
+      // Update nama jika berubah
+      if (_namaController.text.trim() != widget.userData.nama) {
+        final result = await updateService.updateNama(
+          _namaController.text.trim(),
+        );
+        if (result != null) updateResults.add('Nama: $result');
+      }
+
+      // Update email jika berubah
+      if (_emailController.text.trim() != widget.userData.email) {
+        final result = await updateService.updateEmail(
+          _emailController.text.trim(),
+        );
+        if (result != null) updateResults.add('Email: $result');
+      }
+
+      // Update nomor telepon jika berubah
+      if (_nomorTelpController.text.trim() != widget.userData.nomorTelp) {
+        final result = await updateService.updateNomorTelepon(
+          _nomorTelpController.text.trim(),
+        );
+        if (result != null) updateResults.add('Nomor Telepon: $result');
+      }
+
+      // Update password jika diisi
+      if (_passwordController.text.trim().isNotEmpty) {
+        final result = await updateService.updatePassword(
+          _passwordController.text.trim(),
+        );
+        if (result != null) updateResults.add('Password: $result');
+      }
+
+      setState(() => _isLoading = false);
+
+      if (updateResults.isNotEmpty) {
+        // Refresh data profil
+        widget.onProfileUpdated();
+
+        // Tampilkan hasil update
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Profil berhasil diperbarui!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context);
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tidak ada perubahan yang dilakukan'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool isPassword = false,
+    String? Function(String?)? validator,
+    TextInputType? keyboardType,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        controller: controller,
+        obscureText: isPassword && _obscurePassword,
+        keyboardType: keyboardType,
+        validator: validator,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, color: Colors.black87),
+          suffixIcon:
+              isPassword
+                  ? IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility
+                          : Icons.visibility_off,
+                      color: Colors.black87,
+                    ),
+                    onPressed: () {
+                      setState(() => _obscurePassword = !_obscurePassword);
+                    },
+                  )
+                  : null,
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.black87, width: 2),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[50],
+      appBar: AppBar(
+        title: const Text(
+          'Edit Profile',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.black87,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      // SOLUTION 1: Remove bottom navigation from edit page entirely
+      body: SafeArea(
+        bottom: true, // This ensures content doesn't go under system UI
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: Colors.black87,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.person,
+                                size: 40,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              widget.userData.nama,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            Text(
+                              widget.userData.role.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 32),
+
+                      const Text(
+                        'Update Information',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Form Fields
+                      _buildTextField(
+                        controller: _namaController,
+                        label: 'Nama Lengkap',
+                        icon: Icons.person_outline,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Nama tidak boleh kosong';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      _buildTextField(
+                        controller: _emailController,
+                        label: 'Email',
+                        icon: Icons.email_outlined,
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Email tidak boleh kosong';
+                          }
+                          if (!RegExp(
+                            r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                          ).hasMatch(value)) {
+                            return 'Format email tidak valid';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      _buildTextField(
+                        controller: _nomorTelpController,
+                        label: 'Nomor Telepon',
+                        icon: Icons.phone_outlined,
+                        keyboardType: TextInputType.phone,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Nomor telepon tidak boleh kosong';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      _buildTextField(
+                        controller: _passwordController,
+                        label: 'Password Baru (Opsional)',
+                        icon: Icons.lock_outline,
+                        isPassword: true,
+                        validator: (value) {
+                          if (value != null &&
+                              value.trim().isNotEmpty &&
+                              value.length < 6) {
+                            return 'Password minimal 6 karakter';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      // Add extra space to prevent button from being hidden
+                      const SizedBox(height: 100),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Fixed button at bottom
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _updateProfile,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black87,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                  ),
+                  child:
+                      _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.save_outlined),
+                              SizedBox(width: 8),
+                              Text(
+                                'Update Profile',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Profile Page yang sudah diperbarui - SOLUTION 2: Add padding bottom to avoid bottom nav
 class ProfilePembeli extends StatefulWidget {
   const ProfilePembeli({super.key});
 
@@ -91,12 +537,28 @@ class _ProfilePembeliState extends State<ProfilePembeli> {
       setState(() {
         userData = data;
         isLoading = false;
+        errorMessage = null;
       });
     } catch (e) {
       setState(() {
         errorMessage = e.toString();
         isLoading = false;
       });
+    }
+  }
+
+  void _navigateToEditProfile() {
+    if (userData != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => EditProfilePage(
+                userData: userData!,
+                onProfileUpdated: _loadUserData,
+              ),
+        ),
+      );
     }
   }
 
@@ -312,7 +774,8 @@ class _ProfilePembeliState extends State<ProfilePembeli> {
                   _buildHeader(),
                   Expanded(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(24),
+                      // Add padding bottom to prevent overlap with bottom navigation
+                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -356,17 +819,7 @@ class _ProfilePembeliState extends State<ProfilePembeli> {
                             width: double.infinity,
                             height: 56,
                             child: ElevatedButton(
-                              onPressed: () {
-                                // Navigate to edit profile
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Edit Profile feature coming soon!',
-                                    ),
-                                    backgroundColor: Colors.black87,
-                                  ),
-                                );
-                              },
+                              onPressed: _navigateToEditProfile,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.black87,
                                 foregroundColor: Colors.white,
