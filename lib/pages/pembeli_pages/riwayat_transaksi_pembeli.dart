@@ -97,7 +97,11 @@ class _RiwayatTransaksiPembeliState extends State<RiwayatTransaksiPembeli> {
   void _navigateToTransactionDetail(GetRiwayatTransaksi transaction) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => DetailRiwayatTransaksi()),
+      MaterialPageRoute(
+        builder:
+            (context) =>
+                DetailRiwayatTransaksi(idOrderan: transaction.idOrderan),
+      ),
     );
   }
 

@@ -992,3 +992,120 @@ class RiwayatTransaksiDetail {
     }
   }
 }
+
+//class untuk mengecek status pengiriman berdasarkan id_orderan
+class StatusPengiriman {
+  final String status;
+
+  StatusPengiriman({required this.status});
+
+  factory StatusPengiriman.fromJson(Map<String, dynamic> json) {
+    return StatusPengiriman(status: json['status'] ?? '');
+  }
+
+  static Future<StatusPengiriman> fetchStatus(String id) async {
+    final url = Uri.parse(
+      'http://192.168.1.96:3000/api/pembeliCekPengiriman/$id',
+    );
+
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body)['data'];
+
+        if (data is List && data.isNotEmpty) {
+          return StatusPengiriman.fromJson(data[0]);
+        } else {
+          throw Exception('Data pengiriman kosong');
+        }
+      } else {
+        throw Exception(
+          'Gagal mengambil status pengiriman: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      throw Exception('Terjadi kesalahan: $e');
+    }
+  }
+}
+
+class FakturItem {
+  final String namaBarang;
+  final String warna;
+  final String ukuran;
+  final dynamic jumlahOrder; // Changed to dynamic to handle both int and string
+  final dynamic harga; // Changed to dynamic to handle both int and string
+
+  FakturItem({
+    required this.namaBarang,
+    required this.warna,
+    required this.ukuran,
+    required this.jumlahOrder,
+    required this.harga,
+  });
+
+  factory FakturItem.fromJson(Map<String, dynamic> json) {
+    return FakturItem(
+      namaBarang: json['nama_barang']?.toString() ?? '',
+      warna: json['warna']?.toString() ?? '',
+      ukuran: json['ukuran']?.toString() ?? '',
+      jumlahOrder: json['jumlah_order'], // Keep as dynamic
+      harga: json['harga'], // Keep as dynamic
+    );
+  }
+}
+
+class Faktur {
+  final String nomorFaktur;
+  final String tanggalFaktur;
+  final String id;
+  final String namaPengguna;
+  final List<FakturItem> items;
+
+  Faktur({
+    required this.nomorFaktur,
+    required this.tanggalFaktur,
+    required this.id,
+    required this.namaPengguna,
+    required this.items,
+  });
+
+  factory Faktur.fromJson(Map<String, dynamic> json) {
+    var itemsJson = json['items'] as List? ?? [];
+    List<FakturItem> itemList =
+        itemsJson.map((item) => FakturItem.fromJson(item)).toList();
+
+    return Faktur(
+      nomorFaktur: json['nomor_faktur']?.toString() ?? '',
+      tanggalFaktur: json['tanggal_faktur']?.toString() ?? '',
+      id: json['id']?.toString() ?? '',
+      namaPengguna: json['nama_pengguna']?.toString() ?? '',
+      items: itemList,
+    );
+  }
+}
+
+class ApiService {
+  final String baseUrl = 'http://192.168.1.96:3000/api';
+
+  Future<Faktur> fetchFaktur(String id) async {
+    final response = await http.get(Uri.parse('$baseUrl/pembeliFaktur/$id'));
+
+    if (response.statusCode == 200) {
+      final jsonData = json.decode(response.body);
+
+      // Handle different possible response structures
+      Map<String, dynamic> data;
+      if (jsonData is Map<String, dynamic>) {
+        data = jsonData['data'] ?? jsonData;
+      } else {
+        throw Exception('Format response tidak valid');
+      }
+
+      return Faktur.fromJson(data);
+    } else {
+      throw Exception('Gagal memuat data faktur: ${response.statusCode}');
+    }
+  }
+}

@@ -17,6 +17,7 @@ class _LoginPageState extends State<LoginPage> {
   TextEditingController usernameController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
   bool isPasswordVisible = false;
+  bool isCapsLockOn = false;
 
   @override
   Widget build(BuildContext context) {
@@ -158,9 +159,9 @@ class _LoginPageState extends State<LoginPage> {
                                 color: Colors.black,
                               ),
                             ),
-                            const SizedBox(height: 30),
+                            const SizedBox(height: 20),
 
-                            // Modern text fields
+                            // Modern text fields - Username
                             Theme(
                               data: Theme.of(context).copyWith(
                                 inputDecorationTheme: InputDecorationTheme(
@@ -175,6 +176,9 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                               child: TextField(
                                 controller: usernameController,
+                                autocorrect: false,
+                                enableSuggestions: false,
+                                textCapitalization: TextCapitalization.none,
                                 style: const TextStyle(
                                   fontSize: 15,
                                   color: Colors.black,
@@ -214,6 +218,7 @@ class _LoginPageState extends State<LoginPage> {
 
                             const SizedBox(height: 20),
 
+                            // Password field with caps lock detection
                             Theme(
                               data: Theme.of(context).copyWith(
                                 inputDecorationTheme: InputDecorationTheme(
@@ -226,57 +231,117 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                 ),
                               ),
-                              child: TextField(
-                                controller: passwordController,
-                                obscureText: !isPasswordVisible,
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  color: Colors.black,
-                                ),
-                                decoration: InputDecoration(
-                                  labelText: "Password",
-                                  labelStyle: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey.shade700,
-                                  ),
-                                  prefixIcon: Icon(
-                                    Icons.lock_outline,
-                                    size: 20,
-                                    color: Colors.grey.shade800,
-                                  ),
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
-                                      isPasswordVisible
-                                          ? Icons.visibility_off_outlined
-                                          : Icons.visibility_outlined,
-                                      size: 20,
-                                      color: Colors.grey.shade700,
-                                    ),
-                                    onPressed: () {
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  TextField(
+                                    controller: passwordController,
+                                    obscureText: !isPasswordVisible,
+                                    autocorrect: false,
+                                    enableSuggestions: false,
+                                    onChanged: (value) {
+                                      // Simple caps lock detection
+                                      bool hasCaps = value.contains(
+                                        RegExp(r'[A-Z]'),
+                                      );
+                                      bool hasLower = value.contains(
+                                        RegExp(r'[a-z]'),
+                                      );
                                       setState(() {
-                                        isPasswordVisible = !isPasswordVisible;
+                                        isCapsLockOn =
+                                            hasCaps &&
+                                            !hasLower &&
+                                            value.length > 2;
                                       });
                                     },
-                                  ),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(15),
-                                    borderSide: BorderSide(
-                                      color: Colors.grey.shade300,
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      color: Colors.black,
+                                    ),
+                                    decoration: InputDecoration(
+                                      labelText: "Password",
+                                      labelStyle: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey.shade700,
+                                      ),
+                                      prefixIcon: Icon(
+                                        Icons.lock_outline,
+                                        size: 20,
+                                        color: Colors.grey.shade800,
+                                      ),
+                                      suffixIcon: IconButton(
+                                        icon: Icon(
+                                          isPasswordVisible
+                                              ? Icons.visibility_off_outlined
+                                              : Icons.visibility_outlined,
+                                          size: 20,
+                                          color: Colors.grey.shade700,
+                                        ),
+                                        onPressed: () {
+                                          setState(() {
+                                            isPasswordVisible =
+                                                !isPasswordVisible;
+                                          });
+                                        },
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(15),
+                                        borderSide: BorderSide(
+                                          color: Colors.grey.shade300,
+                                        ),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(15),
+                                        borderSide: BorderSide(
+                                          color: Colors.grey.shade200,
+                                        ),
+                                      ),
+                                      filled: true,
+                                      fillColor: Colors.grey.shade50,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 20,
+                                            vertical: 16,
+                                          ),
                                     ),
                                   ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(15),
-                                    borderSide: BorderSide(
-                                      color: Colors.grey.shade200,
+
+                                  // Caps lock warning
+                                  if (isCapsLockOn)
+                                    Container(
+                                      margin: const EdgeInsets.only(top: 8),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange.shade50,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: Colors.orange.shade200,
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.warning_amber_outlined,
+                                            size: 14,
+                                            color: Colors.orange.shade700,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            "Caps Lock mungkin aktif",
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.orange.shade700,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.grey.shade50,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                    vertical: 16,
-                                  ),
-                                ),
+                                ],
                               ),
                             ),
 
@@ -301,11 +366,14 @@ class _LoginPageState extends State<LoginPage> {
                                                 .text
                                                 .isNotEmpty) {
                                           try {
-                                            String? result =
-                                                await LoginAkunPembeli.loginAkunPembeli(
-                                                  usernameController.text,
-                                                  passwordController.text,
-                                                );
+                                            // Pastikan mengirim input persis seperti yang diketik user
+                                            String?
+                                            result = await LoginAkunPembeli.loginAkunPembeli(
+                                              usernameController
+                                                  .text, // Tidak diubah case-nya
+                                              passwordController
+                                                  .text, // Tidak diubah case-nya
+                                            );
 
                                             if (result == "admin") {
                                               toastification.show(
@@ -496,26 +564,19 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           TextButton(
                             style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero, // Hapus padding bawaan
-                              minimumSize: Size(
-                                0,
-                                0,
-                              ), // Hilangkan ukuran minimum
-                              tapTargetSize:
-                                  MaterialTapTargetSize
-                                      .shrinkWrap, // Rapatkan area klik
+                              padding: EdgeInsets.zero,
+                              minimumSize: const Size(0, 0),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
                             onPressed: () {
                               Navigator.of(context).pushReplacement(
                                 MaterialPageRoute(
-                                  builder:
-                                      (context) =>
-                                          const RegisterPage(), // Ganti dengan halaman pendaftaran
+                                  builder: (context) => const RegisterPage(),
                                 ),
                               );
                             },
                             child: const Text(
-                              " Daftar Sekarang", // Tambahkan spasi di depan agar rapat
+                              " Daftar Sekarang",
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.black,
