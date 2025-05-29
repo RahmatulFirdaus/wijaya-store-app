@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/models/pembeli_model.dart';
 import 'package:frontend/pages/pembeli_pages/ulasan_invoice_pengiriman/invoice.dart';
 import 'package:frontend/pages/pembeli_pages/ulasan_invoice_pengiriman/pengiriman.dart';
+import 'package:frontend/pages/pembeli_pages/ulasan_invoice_pengiriman/ulasan/lobby_ulasan.dart';
 
 class DetailRiwayatTransaksi extends StatefulWidget {
   final String idOrderan;
@@ -211,7 +212,20 @@ class _DetailRiwayatTransaksiState extends State<DetailRiwayatTransaksi> {
                             // Ulasan Button
                             Expanded(
                               child: OutlinedButton(
-                                onPressed: _canGiveReview() ? () {} : null,
+                                onPressed:
+                                    _canGiveReview()
+                                        ? () {
+                                          // Navigator.push(
+                                          //   context,
+                                          //   MaterialPageRoute(
+                                          //     builder:
+                                          //         (context) => LobbyUlasan(
+                                          //           idOrderan: widget.idOrderan,
+                                          //         ),
+                                          //   ),
+                                          // );
+                                        }
+                                        : null,
                                 style: OutlinedButton.styleFrom(
                                   side: BorderSide(
                                     color:

@@ -944,6 +944,7 @@ class StatusOrder {
 
 //class untuk menampilkan detail riwayat transaksi pembeli
 class RiwayatTransaksiDetail {
+  final String idProduk;
   final String namaProduk;
   final String warna;
   final int ukuran;
@@ -952,6 +953,7 @@ class RiwayatTransaksiDetail {
   final String linkGambarVarian;
 
   RiwayatTransaksiDetail({
+    required this.idProduk,
     required this.namaProduk,
     required this.warna,
     required this.ukuran,
@@ -962,28 +964,34 @@ class RiwayatTransaksiDetail {
 
   factory RiwayatTransaksiDetail.fromJson(Map<String, dynamic> json) {
     return RiwayatTransaksiDetail(
+      idProduk: json['id_produk'].toString(),
       namaProduk: json['nama_produk'] ?? '',
       warna: json['warna'] ?? '',
-      ukuran: json['ukuran'] ?? 0,
-      jumlah: json['jumlah'] ?? 0,
-      harga: json['harga'] ?? '0',
+      ukuran: int.tryParse(json['ukuran'].toString()) ?? 0,
+      jumlah: int.tryParse(json['jumlah'].toString()) ?? 0,
+      harga: json['harga']?.toString() ?? '0',
       linkGambarVarian: json['link_gambar_varian'] ?? '',
     );
   }
 
   static Future<List<RiwayatTransaksiDetail>> fetchDetail(String id) async {
-    final response = await http.get(
-      Uri.parse(
-        'http://192.168.1.96:3000/api/pembeliRiwayatTransaksiDetail/$id',
-      ),
-    );
-
     try {
+      final response = await http.get(
+        Uri.parse(
+          'http://192.168.1.96:3000/api/pembeliRiwayatTransaksiDetail/$id',
+        ),
+      );
+
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body)['data'];
-        return data
-            .map((item) => RiwayatTransaksiDetail.fromJson(item))
-            .toList();
+        final responseBody = jsonDecode(response.body);
+        if (responseBody['data'] != null) {
+          final List<dynamic> data = responseBody['data'];
+          return data
+              .map((item) => RiwayatTransaksiDetail.fromJson(item))
+              .toList();
+        } else {
+          return [];
+        }
       } else {
         throw Exception('Gagal mengambil data: ${response.statusCode}');
       }
@@ -1106,6 +1114,40 @@ class ApiService {
       return Faktur.fromJson(data);
     } else {
       throw Exception('Gagal memuat data faktur: ${response.statusCode}');
+    }
+  }
+}
+
+//class untuk menambahkan ulasan produk
+class PostKomentar {
+  final String pesan;
+
+  PostKomentar({required this.pesan});
+
+  static Future<PostKomentar> kirimKomentar({
+    required String idProduk,
+    required String rating,
+    required String komentar,
+  }) async {
+    const storage = FlutterSecureStorage();
+    final token = await storage.read(key: 'token');
+    final url = Uri.parse('http://192.168.1.96:3000/api/pembeliTambahKomentar');
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: {'id_produk': idProduk, 'rating': rating, 'komentar': komentar},
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 201) {
+      return PostKomentar(pesan: data['pesan']);
+    } else {
+      throw Exception(data['pesan'] ?? 'Gagal mengirim komentar');
     }
   }
 }
