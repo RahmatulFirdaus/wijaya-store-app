@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/pages/karyawan_pages/absensi/lobby_absensi.dart';
+import 'package:frontend/pages/karyawan_pages/pengajuan_izin/lobby_pengajuan_izin.dart';
 
 class MainKaryawan extends StatefulWidget {
   const MainKaryawan({super.key});
@@ -40,7 +42,14 @@ class _MainKaryawanState extends State<MainKaryawan> {
                       context,
                       icon: Icons.access_time_rounded,
                       title: 'Absensi',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const LobbyAbsensi(),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 20),
 
@@ -58,7 +67,14 @@ class _MainKaryawanState extends State<MainKaryawan> {
                       context,
                       icon: Icons.schedule_rounded,
                       title: 'Pengajuan Izin',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const LobbyPengajuanIzin(),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
