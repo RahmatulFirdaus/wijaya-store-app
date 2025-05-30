@@ -311,10 +311,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
         centerTitle: true,
         backgroundColor: Colors.black87,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
       ),
       // SOLUTION 1: Remove bottom navigation from edit page entirely
       body: SafeArea(

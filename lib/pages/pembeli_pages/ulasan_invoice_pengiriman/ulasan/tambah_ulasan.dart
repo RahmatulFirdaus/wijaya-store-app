@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:frontend/models/pembeli_model.dart';
 
 class TambahUlasan extends StatefulWidget {
-  final String idProduk; // Sekarang ini adalah riwayatDetailId
+  final String idProduk;
+  final String idVarianProduk;
 
-  const TambahUlasan({super.key, required this.idProduk});
+  const TambahUlasan({
+    super.key,
+    required this.idProduk,
+    required this.idVarianProduk,
+  });
 
   @override
   State<TambahUlasan> createState() => _TambahUlasanState();
@@ -48,7 +53,8 @@ class _TambahUlasanState extends State<TambahUlasan> {
 
     try {
       final result = await PostKomentar.kirimKomentar(
-        idProduk: widget.idProduk, // Ini sekarang adalah riwayatDetailId
+        idProduk: widget.idProduk,
+        idVarianProduk: widget.idVarianProduk,
         rating: selectedRating.toString(),
         komentar: _komentarController.text.trim(),
       );

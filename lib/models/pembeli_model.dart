@@ -945,6 +945,7 @@ class StatusOrder {
 //class untuk menampilkan detail riwayat transaksi pembeli
 class RiwayatTransaksiDetail {
   final String idProduk;
+  final String idVarianProduk;
   final String namaProduk;
   final String warna;
   final int ukuran;
@@ -954,6 +955,7 @@ class RiwayatTransaksiDetail {
 
   RiwayatTransaksiDetail({
     required this.idProduk,
+    required this.idVarianProduk,
     required this.namaProduk,
     required this.warna,
     required this.ukuran,
@@ -965,6 +967,7 @@ class RiwayatTransaksiDetail {
   factory RiwayatTransaksiDetail.fromJson(Map<String, dynamic> json) {
     return RiwayatTransaksiDetail(
       idProduk: json['id_produk'].toString(),
+      idVarianProduk: json['id_varian_produk'].toString(),
       namaProduk: json['nama_produk'] ?? '',
       warna: json['warna'] ?? '',
       ukuran: int.tryParse(json['ukuran'].toString()) ?? 0,
@@ -1126,6 +1129,7 @@ class PostKomentar {
 
   static Future<PostKomentar> kirimKomentar({
     required String idProduk,
+    required String idVarianProduk,
     required String rating,
     required String komentar,
   }) async {
@@ -1139,7 +1143,12 @@ class PostKomentar {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: {'id_produk': idProduk, 'rating': rating, 'komentar': komentar},
+      body: {
+        'id_produk': idProduk,
+        'id_varian_produk': idVarianProduk,
+        'rating': rating,
+        'komentar': komentar,
+      },
     );
 
     final data = jsonDecode(response.body);
@@ -1148,6 +1157,71 @@ class PostKomentar {
       return PostKomentar(pesan: data['pesan']);
     } else {
       throw Exception(data['pesan'] ?? 'Gagal mengirim komentar');
+    }
+  }
+}
+
+//class untuk mengecek apakah pembeli sudah mengirimkan ulasan
+class KomentarModel {
+  final int id;
+  final int idPengguna;
+  final int idProduk;
+  final int rating;
+  final String komentar;
+  final DateTime tanggalKomentar;
+
+  KomentarModel({
+    required this.id,
+    required this.idPengguna,
+    required this.idProduk,
+    required this.rating,
+    required this.komentar,
+    required this.tanggalKomentar,
+  });
+
+  factory KomentarModel.fromJson(Map<String, dynamic> json) {
+    return KomentarModel(
+      id: json['id'],
+      idPengguna: json['id_pengguna'],
+      idProduk: json['id_produk'],
+      rating: json['rating'],
+      komentar: json['komentar'],
+      tanggalKomentar: DateTime.parse(json['tanggal_komentar']),
+    );
+  }
+}
+
+class CekKomentarService {
+  static Future<KomentarModel?> fetchKomentar(int idVarianProduk) async {
+    const storage = FlutterSecureStorage();
+    var token = await storage.read(key: 'token');
+
+    Uri url = Uri.parse(
+      "http://192.168.1.96:3000/api/pembeliCekKomentar/$idVarianProduk",
+    );
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final komentar = data['data'][0]; // karena data dalam bentuk list
+        return KomentarModel.fromJson(komentar);
+      } else if (response.statusCode == 404) {
+        return null; // tidak ada komentar
+      } else {
+        throw Exception(
+          'Failed to load komentar (status: ${response.statusCode})',
+        );
+      }
+    } catch (e) {
+      throw Exception('Error while fetching komentar: $e');
     }
   }
 }

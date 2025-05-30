@@ -215,15 +215,16 @@ class _DetailRiwayatTransaksiState extends State<DetailRiwayatTransaksi> {
                                 onPressed:
                                     _canGiveReview()
                                         ? () {
-                                          // Navigator.push(
-                                          //   context,
-                                          //   MaterialPageRoute(
-                                          //     builder:
-                                          //         (context) => LobbyUlasan(
-                                          //           idOrderan: widget.idOrderan,
-                                          //         ),
-                                          //   ),
-                                          // );
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder:
+                                                  (context) => LobbyUlasan(
+                                                    transactionId:
+                                                        widget.idOrderan,
+                                                  ),
+                                            ),
+                                          );
                                         }
                                         : null,
                                 style: OutlinedButton.styleFrom(
