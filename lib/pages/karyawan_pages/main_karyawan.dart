@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/pages/karyawan_pages/absensi/lobby_absensi.dart';
 import 'package:frontend/pages/karyawan_pages/pengajuan_izin/lobby_pengajuan_izin.dart';
+import 'package:frontend/pages/karyawan_pages/penjualan_offline/lobby_penjualan_offline.dart';
 
 class MainKaryawan extends StatefulWidget {
   const MainKaryawan({super.key});
@@ -58,7 +59,14 @@ class _MainKaryawanState extends State<MainKaryawan> {
                       context,
                       icon: Icons.laptop_mac_rounded,
                       title: 'Catatan Offline',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const LobbyPenjualanOffline(),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 20),
 
