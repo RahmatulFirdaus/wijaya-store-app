@@ -190,6 +190,18 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
     });
   }
 
+  int get totalHargaKeseluruhan {
+    return filteredPenjualanList.fold(0, (total, item) {
+      try {
+        final harga = int.parse(item.hargaProduk);
+        final jumlah = int.parse(item.jumlahProduk);
+        return total + (harga * jumlah);
+      } catch (e) {
+        return total;
+      }
+    });
+  }
+
   void _showDateFilterDialog() {
     showDialog(
       context: context,
@@ -292,107 +304,6 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
         },
         activeColor: Colors.black,
       ),
-    );
-  }
-
-  void _showDeleteConfirmation(int index) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.warning_amber,
-                  color: Colors.red.shade600,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'Konfirmasi Hapus',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
-              ),
-            ],
-          ),
-          content: const Text(
-            'Apakah Anda yakin ingin menghapus item ini? Tindakan ini tidak dapat dibatalkan.',
-            style: TextStyle(fontSize: 16, height: 1.4),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Text(
-                'Batal',
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                setState(() {
-                  penjualanList.removeAt(index);
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Row(
-                      children: [
-                        Icon(Icons.check_circle_outline, color: Colors.white),
-                        SizedBox(width: 8),
-                        Text('Item berhasil dihapus'),
-                      ],
-                    ),
-                    backgroundColor: Colors.green.shade600,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    margin: const EdgeInsets.all(16),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade600,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-              child: const Text(
-                'Hapus',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -1245,6 +1156,19 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
                       ),
                     ),
           ),
+          if (filteredPenjualanList.isNotEmpty && !isLoading)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Total Harga: ${_formatCurrency(totalHargaKeseluruhan)}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  color: Colors.black,
+                ),
+              ),
+            ),
         ],
       ),
     );
