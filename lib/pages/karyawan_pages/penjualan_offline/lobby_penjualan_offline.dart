@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/models/karyawan_model.dart';
-import 'package:frontend/pages/karyawan_pages/penjualan_offline/main_tambah_penjualan_offline.dart';
-import 'package:toastification/toastification.dart';
+import 'main_tambah_penjualan_offline.dart'; // Pastikan import ini ada
 
 class LobbyPenjualanOffline extends StatefulWidget {
   const LobbyPenjualanOffline({super.key});
@@ -16,8 +15,7 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
   List<PenjualanOfflineKaryawan> penjualanList = [];
   bool isLoading = true;
   String searchQuery = '';
-  String selectedDateFilter = 'all'; // all, today, week, month, custom
-  DateTimeRange? customDateRange;
+  String? selectedDate; // Filter tanggal yang dipilih
   final TextEditingController searchController = TextEditingController();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -73,6 +71,105 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
     }
   }
 
+  // Fungsi delete
+  Future<void> _deleteItem(PenjualanOfflineKaryawan item) async {
+    final confirmed = await _showDeleteConfirmation();
+    if (!confirmed) return;
+
+    try {
+      await HapusProdukPenjualanOffline.hapusProdukPenjualanOffline(
+        item.idPenjualanOffline,
+      );
+
+      if (mounted) {
+        _showSuccessToast('Produk berhasil dihapus');
+        await loadData();
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorToast(e.toString().replaceFirst('Exception: ', ''));
+      }
+    }
+  }
+
+  Future<bool> _showDeleteConfirmation() async {
+    return await showDialog<bool>(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                title: const Text('Hapus Item'),
+                content: const Text(
+                  'Apakah Anda yakin ingin menghapus item ini?',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('Batal'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text(
+                      'Hapus',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  ),
+                ],
+              ),
+        ) ??
+        false;
+  }
+
+  void _showSuccessToast(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  void _showErrorToast(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  String _formatDateOnly(String dateTimeString) {
+    try {
+      // Parse dari format "YYYY-MM-DD HH:mm:ss"
+      final parts = dateTimeString
+          .split(' ')[0]
+          .split('-'); // Ambil bagian tanggal saja
+      if (parts.length == 3) {
+        return '${parts[2]}/${parts[1]}/${parts[0]}'; // Ubah ke DD/MM/YYYY
+      }
+      return dateTimeString;
+    } catch (e) {
+      return dateTimeString;
+    }
+  }
+
   DateTime _parseDate(String dateString) {
     try {
       // Assuming the date format is DD/MM/YYYY or similar
@@ -94,6 +191,15 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
   List<PenjualanOfflineKaryawan> get filteredPenjualanList {
     List<PenjualanOfflineKaryawan> filtered = penjualanList;
 
+    // Apply date filter first
+    if (selectedDate != null) {
+      filtered =
+          filtered.where((item) {
+            final itemDateOnly = _formatDateOnly(item.tanggalPenjualan);
+            return itemDateOnly == selectedDate;
+          }).toList();
+    }
+
     // Apply search filter
     if (searchQuery.isNotEmpty) {
       filtered =
@@ -113,41 +219,6 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
           }).toList();
     }
 
-    // Apply date filter
-    final now = DateTime.now();
-    filtered =
-        filtered.where((item) {
-          final itemDate = _parseDate(item.tanggalPenjualan);
-
-          switch (selectedDateFilter) {
-            case 'today':
-              return itemDate.year == now.year &&
-                  itemDate.month == now.month &&
-                  itemDate.day == now.day;
-            case 'week':
-              final weekStart = now.subtract(Duration(days: now.weekday - 1));
-              final weekEnd = weekStart.add(const Duration(days: 6));
-              return itemDate.isAfter(
-                    weekStart.subtract(const Duration(days: 1)),
-                  ) &&
-                  itemDate.isBefore(weekEnd.add(const Duration(days: 1)));
-            case 'month':
-              return itemDate.year == now.year && itemDate.month == now.month;
-            case 'custom':
-              if (customDateRange != null) {
-                return itemDate.isAfter(
-                      customDateRange!.start.subtract(const Duration(days: 1)),
-                    ) &&
-                    itemDate.isBefore(
-                      customDateRange!.end.add(const Duration(days: 1)),
-                    );
-              }
-              return true;
-            default:
-              return true;
-          }
-        }).toList();
-
     return filtered;
   }
 
@@ -156,10 +227,13 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
     final Map<String, List<PenjualanOfflineKaryawan>> grouped = {};
 
     for (final item in filtered) {
-      if (grouped[item.tanggalPenjualan] == null) {
-        grouped[item.tanggalPenjualan] = [];
+      // Gunakan fungsi _formatDateOnly untuk mendapatkan tanggal saja
+      final dateOnly = _formatDateOnly(item.tanggalPenjualan);
+
+      if (grouped[dateOnly] == null) {
+        grouped[dateOnly] = [];
       }
-      grouped[item.tanggalPenjualan]!.add(item);
+      grouped[dateOnly]!.add(item);
     }
 
     // Sort by date (most recent first)
@@ -176,6 +250,23 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
     }
 
     return sortedGrouped;
+  }
+
+  // Get unique dates for dropdown
+  List<String> get availableDates {
+    // Gunakan Set untuk menghindari duplikasi tanggal
+    final dates =
+        penjualanList
+            .map((item) => _formatDateOnly(item.tanggalPenjualan))
+            .toSet()
+            .toList();
+
+    dates.sort((a, b) {
+      final dateA = _parseDate(a);
+      final dateB = _parseDate(b);
+      return dateB.compareTo(dateA);
+    });
+    return dates;
   }
 
   int _calculateTotalForDate(List<PenjualanOfflineKaryawan> items) {
@@ -202,131 +293,51 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
     });
   }
 
-  void _showDateFilterDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.date_range,
-                  color: Colors.blue.shade600,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'Filter Tanggal',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildDateFilterOption('Semua Tanggal', 'all'),
-              _buildDateFilterOption('Hari Ini', 'today'),
-              _buildDateFilterOption('Minggu Ini', 'week'),
-              _buildDateFilterOption('Bulan Ini', 'month'),
-              _buildDateFilterOption('Rentang Kustom', 'custom'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Tutup',
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildDateFilterOption(String title, String value) {
-    return ListTile(
-      title: Text(
-        title,
-        style: TextStyle(
-          fontWeight:
-              selectedDateFilter == value ? FontWeight.w600 : FontWeight.w400,
-        ),
-      ),
-      leading: Radio<String>(
-        value: value,
-        groupValue: selectedDateFilter,
-        onChanged: (String? newValue) async {
-          if (newValue == 'custom') {
-            Navigator.of(context).pop();
-            final DateTimeRange? picked = await showDateRangePicker(
-              context: context,
-              firstDate: DateTime(2020),
-              lastDate: DateTime.now().add(const Duration(days: 365)),
-              initialDateRange: customDateRange,
-              builder: (context, child) {
-                return Theme(
-                  data: Theme.of(context).copyWith(
-                    colorScheme: Theme.of(
-                      context,
-                    ).colorScheme.copyWith(primary: Colors.black),
-                  ),
-                  child: child!,
-                );
-              },
-            );
-            if (picked != null) {
-              setState(() {
-                customDateRange = picked;
-                selectedDateFilter = 'custom';
-              });
-            }
-          } else {
-            setState(() {
-              selectedDateFilter = newValue!;
-            });
-            Navigator.of(context).pop();
-          }
-        },
-        activeColor: Colors.black,
-      ),
-    );
-  }
-
   String _formatCurrency(int amount) {
     return 'Rp ${amount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
   }
 
-  String _getDateFilterLabel() {
-    switch (selectedDateFilter) {
-      case 'today':
-        return 'Hari Ini';
-      case 'week':
-        return 'Minggu Ini';
-      case 'month':
-        return 'Bulan Ini';
-      case 'custom':
-        if (customDateRange != null) {
-          return '${customDateRange!.start.day}/${customDateRange!.start.month}/${customDateRange!.start.year} - ${customDateRange!.end.day}/${customDateRange!.end.month}/${customDateRange!.end.year}';
-        }
-        return 'Rentang Kustom';
-      default:
-        return 'Semua';
-    }
+  Widget _buildDetailRow(String label, String value, IconData icon) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 14, color: Colors.grey.shade600),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.2,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  height: 1.2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -365,25 +376,12 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
         ),
         centerTitle: true,
         actions: [
+          // Tambahkan tombol +
           Container(
-            margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Colors.black, Color(0xFF333333)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
+            margin: const EdgeInsets.only(right: 16),
             child: IconButton(
-              icon: const Icon(Icons.add, color: Colors.white, size: 20),
+              icon: const Icon(Icons.add, color: Colors.black, size: 26),
+              tooltip: 'Tambah Penjualan',
               onPressed: () {
                 Navigator.push(
                   context,
@@ -398,139 +396,156 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
       ),
       body: Column(
         children: [
-          // Enhanced Search Bar
+          // Date Filter and Search Bar
           Container(
             margin: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: TextField(
-              controller: searchController,
-              onChanged: (value) {
-                setState(() {
-                  searchQuery = value;
-                });
-              },
-              style: const TextStyle(fontSize: 16),
-              decoration: InputDecoration(
-                hintText: 'Cari produk, karyawan, atau varian...',
-                hintStyle: TextStyle(
-                  color: Colors.grey.shade500,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w400,
-                ),
-                prefixIcon: Container(
-                  margin: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Icons.search,
-                    color: Colors.grey.shade600,
-                    size: 20,
-                  ),
-                ),
-                suffixIcon:
-                    searchQuery.isNotEmpty
-                        ? IconButton(
-                          icon: Icon(
-                            Icons.clear,
-                            color: Colors.grey.shade600,
-                            size: 20,
-                          ),
-                          onPressed: () {
-                            searchController.clear();
-                            setState(() {
-                              searchQuery = '';
-                            });
-                          },
-                        )
-                        : null,
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 16,
-                ),
-              ),
-            ),
-          ),
-
-          // Date Filter Button
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: _showDateFilterDialog,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
+                // Date Filter Dropdown
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
                       ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color:
-                              selectedDateFilter != 'all'
-                                  ? Colors.black
-                                  : Colors.grey.shade300,
-                          width: selectedDateFilter != 'all' ? 2 : 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
+                    ],
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String?>(
+                      value: selectedDate,
+                      hint: Row(
                         children: [
                           Icon(
-                            Icons.date_range,
-                            color:
-                                selectedDateFilter != 'all'
-                                    ? Colors.black
-                                    : Colors.grey.shade600,
-                            size: 20,
+                            Icons.calendar_today,
+                            size: 18,
+                            color: Colors.grey.shade600,
                           ),
                           const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _getDateFilterLabel(),
-                              style: TextStyle(
-                                color:
-                                    selectedDateFilter != 'all'
-                                        ? Colors.black
-                                        : Colors.grey.shade600,
-                                fontWeight:
-                                    selectedDateFilter != 'all'
-                                        ? FontWeight.w600
-                                        : FontWeight.w500,
-                                fontSize: 14,
-                              ),
+                          Text(
+                            'Pilih Tanggal',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 15,
                             ),
                           ),
-                          Icon(
-                            Icons.keyboard_arrow_down,
-                            color:
-                                selectedDateFilter != 'all'
-                                    ? Colors.black
-                                    : Colors.grey.shade600,
-                            size: 20,
-                          ),
                         ],
+                      ),
+                      icon: Icon(
+                        Icons.arrow_drop_down,
+                        color: Colors.grey.shade600,
+                      ),
+                      isExpanded: true,
+                      items: [
+                        DropdownMenuItem<String?>(
+                          value: null,
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.all_inclusive,
+                                size: 18,
+                                color: Colors.blue.shade600,
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('Semua Tanggal'),
+                            ],
+                          ),
+                        ),
+                        ...availableDates.map(
+                          (date) => DropdownMenuItem<String?>(
+                            value: date,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.calendar_today,
+                                  size: 18,
+                                  color: Colors.green.shade600,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(date),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          selectedDate = value;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Search Bar
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: TextField(
+                    controller: searchController,
+                    onChanged: (value) {
+                      setState(() {
+                        searchQuery = value;
+                      });
+                    },
+                    style: const TextStyle(fontSize: 16),
+                    decoration: InputDecoration(
+                      hintText: 'Cari produk, karyawan, atau varian...',
+                      hintStyle: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w400,
+                      ),
+                      prefixIcon: Container(
+                        margin: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          Icons.search,
+                          color: Colors.grey.shade600,
+                          size: 20,
+                        ),
+                      ),
+                      suffixIcon:
+                          searchQuery.isNotEmpty
+                              ? IconButton(
+                                icon: Icon(
+                                  Icons.clear,
+                                  color: Colors.grey.shade600,
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  searchController.clear();
+                                  setState(() {
+                                    searchQuery = '';
+                                  });
+                                },
+                              )
+                              : null,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
                       ),
                     ),
                   ),
@@ -538,6 +553,108 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
               ],
             ),
           ),
+
+          // Active Filters Indicator
+          if (selectedDate != null || searchQuery.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Row(
+                children: [
+                  if (selectedDate != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade100,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.blue.shade300),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.calendar_today,
+                            size: 14,
+                            color: Colors.blue.shade700,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            selectedDate!,
+                            style: TextStyle(
+                              color: Colors.blue.shade700,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                selectedDate = null;
+                              });
+                            },
+                            child: Icon(
+                              Icons.close,
+                              size: 14,
+                              color: Colors.blue.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  if (searchQuery.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade100,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.green.shade300),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.search,
+                            size: 14,
+                            color: Colors.green.shade700,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '"$searchQuery"',
+                            style: TextStyle(
+                              color: Colors.green.shade700,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          GestureDetector(
+                            onTap: () {
+                              searchController.clear();
+                              setState(() {
+                                searchQuery = '';
+                              });
+                            },
+                            child: Icon(
+                              Icons.close,
+                              size: 14,
+                              color: Colors.green.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
 
           // Results Counter
           if (filteredPenjualanList.isNotEmpty && !isLoading)
@@ -563,17 +680,6 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
                       ),
                     ),
                   ),
-                  if (searchQuery.isNotEmpty) ...[
-                    const SizedBox(width: 8),
-                    Text(
-                      'untuk "${searchQuery}"',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 12,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -637,8 +743,7 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
                               ],
                             ),
                             child: Icon(
-                              searchQuery.isNotEmpty ||
-                                      selectedDateFilter != 'all'
+                              searchQuery.isNotEmpty || selectedDate != null
                                   ? Icons.search_off
                                   : Icons.inventory_2_outlined,
                               size: 64,
@@ -647,8 +752,7 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
                           ),
                           const SizedBox(height: 20),
                           Text(
-                            searchQuery.isNotEmpty ||
-                                    selectedDateFilter != 'all'
+                            searchQuery.isNotEmpty || selectedDate != null
                                 ? 'Tidak ada hasil untuk filter ini'
                                 : 'Belum ada data penjualan offline',
                             style: TextStyle(
@@ -659,8 +763,7 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            searchQuery.isNotEmpty ||
-                                    selectedDateFilter != 'all'
+                            searchQuery.isNotEmpty || selectedDate != null
                                 ? 'Coba ubah filter atau kata kunci pencarian'
                                 : 'Data akan muncul setelah ada transaksi',
                             style: TextStyle(
@@ -795,7 +898,7 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            // Enhanced Product Image
+                                            // Product Image
                                             Hero(
                                               tag: 'product_${globalIndex}',
                                               child: Container(
@@ -945,7 +1048,7 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
 
                                             const SizedBox(width: 16),
 
-                                            // Enhanced Product Details
+                                            // Product Details
                                             Expanded(
                                               child: Column(
                                                 crossAxisAlignment:
@@ -995,153 +1098,15 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
                                               ),
                                             ),
 
-                                            const SizedBox(width: 12),
-
-                                            // Enhanced Delete Button
-                                            Container(
-                                              decoration: BoxDecoration(
-                                                gradient: const LinearGradient(
-                                                  colors: [
-                                                    Color(0xFFFF4757),
-                                                    Color(0xFFFF3742),
-                                                  ],
-                                                  begin: Alignment.topLeft,
-                                                  end: Alignment.bottomRight,
-                                                ),
-                                                borderRadius:
-                                                    BorderRadius.circular(16),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: const Color(
-                                                      0xFFFF4757,
-                                                    ).withOpacity(0.3),
-                                                    blurRadius: 8,
-                                                    offset: const Offset(0, 4),
-                                                  ),
-                                                ],
+                                            // Tombol Delete
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.delete,
+                                                color: Colors.red,
                                               ),
-                                              child: Material(
-                                                color: Colors.transparent,
-                                                child: InkWell(
-                                                  borderRadius:
-                                                      BorderRadius.circular(16),
-                                                  onTap: () {
-                                                    showDialog(
-                                                      context: context,
-                                                      builder: (context) {
-                                                        return AlertDialog(
-                                                          title: const Text(
-                                                            'Hapus Item',
-                                                            style: TextStyle(
-                                                              color: Colors.red,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                            ),
-                                                          ),
-                                                          content: const Text(
-                                                            'Apakah Anda yakin ingin menghapus item ini?',
-                                                          ),
-                                                          actions: [
-                                                            TextButton(
-                                                              onPressed: () {
-                                                                Navigator.of(
-                                                                  context,
-                                                                ).pop();
-                                                              },
-                                                              child: const Text(
-                                                                'Batal',
-                                                              ),
-                                                            ),
-                                                            TextButton(
-                                                              onPressed: () async {
-                                                                try {
-                                                                  await HapusProdukPenjualanOffline.hapusProdukPenjualanOffline(
-                                                                    item.idPenjualanOffline,
-                                                                  );
-
-                                                                  toastification.show(
-                                                                    context:
-                                                                        context,
-                                                                    title: const Text(
-                                                                      'Produk berhasil dihapus',
-                                                                    ),
-                                                                    type:
-                                                                        ToastificationType
-                                                                            .success,
-                                                                    style:
-                                                                        ToastificationStyle
-                                                                            .flat,
-                                                                    alignment:
-                                                                        Alignment
-                                                                            .bottomCenter,
-                                                                    autoCloseDuration:
-                                                                        const Duration(
-                                                                          seconds:
-                                                                              3,
-                                                                        ),
-                                                                  );
-
-                                                                  Navigator.of(
-                                                                    context,
-                                                                  ).pop();
-
-                                                                  // Refresh the data after deletion
-                                                                  await loadData();
-                                                                } catch (e) {
-                                                                  toastification.show(
-                                                                    context:
-                                                                        context,
-                                                                    title: Text(
-                                                                      e.toString().replaceFirst(
-                                                                        'Exception: ',
-                                                                        '',
-                                                                      ),
-                                                                    ),
-                                                                    type:
-                                                                        ToastificationType
-                                                                            .error,
-                                                                    style:
-                                                                        ToastificationStyle
-                                                                            .flat,
-                                                                    alignment:
-                                                                        Alignment
-                                                                            .bottomCenter,
-                                                                    autoCloseDuration:
-                                                                        const Duration(
-                                                                          seconds:
-                                                                              4,
-                                                                        ),
-                                                                  );
-                                                                }
-                                                              },
-                                                              child: const Text(
-                                                                'Hapus',
-                                                                style: TextStyle(
-                                                                  color:
-                                                                      Colors
-                                                                          .red,
-                                                                ),
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        );
-                                                      },
-                                                    );
-                                                  },
-
-                                                  child: Container(
-                                                    width: 44,
-                                                    height: 44,
-                                                    alignment: Alignment.center,
-                                                    child: const Icon(
-                                                      Icons.delete_outline,
-                                                      color: Colors.white,
-                                                      size: 20,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
+                                              tooltip: 'Hapus',
+                                              onPressed:
+                                                  () => _deleteItem(item),
                                             ),
                                           ],
                                         ),
@@ -1156,64 +1121,146 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
                       ),
                     ),
           ),
+
+          // Enhanced Total Harga Section
           if (filteredPenjualanList.isNotEmpty && !isLoading)
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Total Harga: ${_formatCurrency(totalHargaKeseluruhan)}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                  color: Colors.black,
+              margin: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.indigo.shade600, Colors.purple.shade600],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.indigo.withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(
+                                    Icons.account_balance_wallet,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Total Keseluruhan',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _formatCurrency(totalHargaKeseluruhan),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.inventory,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '${filteredPenjualanList.length} Item',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (selectedDate != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.calendar_today,
+                              color: Colors.white,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Tanggal: $selectedDate',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),
         ],
       ),
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value, IconData icon) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 14, color: Colors.grey.shade600),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.2,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  height: 1.2,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 
