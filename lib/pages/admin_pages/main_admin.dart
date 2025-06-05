@@ -4,18 +4,17 @@ import 'package:frontend/pages/admin_pages/list_chat_pembeli.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_karyawan_pages/admin_absensi_karyawan.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_karyawan_pages/admin_pengajuan_izin_karyawan.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_master_pages/admin_lobby_akun.dart';
-import 'package:frontend/pages/admin_pages/pages/admin_master_pages/manajemen%20akun/admin_akun.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_master_pages/admin_gaji_karyawan.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_master_pages/admin_harga_original.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_mix_online_offline/admin_penjualan_harian.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_mix_online_offline/admin_penjualan_offline.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/admin_daftar_produk.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/admin_faktur_online.dart';
-import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/admin_pembayaran_online.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/admin_pengiriman.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/admin_produk_perlu_restok.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_mix_online_offline/admin_transaksi_online.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/admin_ulasan_produk.dart';
+import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/pembayaran_online/admin_lobby_pembayaran_online.dart';
 
 class MainAdmin extends StatefulWidget {
   const MainAdmin({super.key});
@@ -223,8 +222,10 @@ class _MainAdminState extends State<MainAdmin> {
               end: Alignment.bottomRight,
             ),
             onTap:
-                (context) =>
-                    _navigateToPage(context, const PembayaranOnlinePage()),
+                (context) => _navigateToPage(
+                  context,
+                  const AdminLobbyPembayaranOnline(),
+                ),
           ),
           AdminMenuItem(
             title: 'Faktur Online',
