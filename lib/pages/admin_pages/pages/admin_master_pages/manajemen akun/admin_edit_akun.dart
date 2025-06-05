@@ -98,25 +98,8 @@ class _AdminEditAkunState extends State<AdminEditAkun> {
     if (value.length > 50) {
       return 'Password maksimal 50 karakter';
     }
-
-    // Check for at least one uppercase letter
-    if (!RegExp(r'[A-Z]').hasMatch(value)) {
-      return 'Password harus mengandung minimal 1 huruf besar';
-    }
-
-    // Check for at least one lowercase letter
-    if (!RegExp(r'[a-z]').hasMatch(value)) {
-      return 'Password harus mengandung minimal 1 huruf kecil';
-    }
-
-    // Check for at least one number
-    if (!RegExp(r'[0-9]').hasMatch(value)) {
-      return 'Password harus mengandung minimal 1 angka';
-    }
-
-    // Check for at least one special character
-    if (!RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(value)) {
-      return 'Password harus mengandung minimal 1 karakter khusus';
+    if (value.contains(' ')) {
+      return 'Username tidak boleh mengandung spasi';
     }
 
     // Check for common weak passwords

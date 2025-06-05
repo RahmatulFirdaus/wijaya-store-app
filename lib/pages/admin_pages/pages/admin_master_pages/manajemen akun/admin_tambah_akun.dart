@@ -128,25 +128,8 @@ class _AdminTambahAkunState extends State<AdminTambahAkun> {
     if (value.length > 50) {
       return 'Password maksimal 50 karakter';
     }
-
-    // Cek apakah mengandung huruf besar
-    if (!RegExp(r'[A-Z]').hasMatch(value)) {
-      return 'Password harus mengandung minimal 1 huruf besar';
-    }
-
-    // Cek apakah mengandung huruf kecil
-    if (!RegExp(r'[a-z]').hasMatch(value)) {
-      return 'Password harus mengandung minimal 1 huruf kecil';
-    }
-
-    // Cek apakah mengandung angka
-    if (!RegExp(r'[0-9]').hasMatch(value)) {
-      return 'Password harus mengandung minimal 1 angka';
-    }
-
-    // Cek apakah mengandung karakter khusus
-    if (!RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(value)) {
-      return 'Password harus mengandung minimal 1 karakter khusus';
+    if (value.contains(' ')) {
+      return 'Username tidak boleh mengandung spasi';
     }
 
     return null;
