@@ -79,7 +79,7 @@ class _KeranjangPembeliState extends State<KeranjangPembeli> {
   void calculateTotal() {
     double total = 0;
     double totalDiskonAmount = 0;
-    double totalHargaAwalAmount = 0; // Add this variable
+    double totalHargaAwalAmount = 0;
 
     for (var item in keranjangItems) {
       double hargaSatuan = double.tryParse(item.hargaSatuan) ?? 0;
@@ -87,8 +87,7 @@ class _KeranjangPembeliState extends State<KeranjangPembeli> {
       int jumlah = int.tryParse(item.jumlah_order) ?? 0;
 
       total += hargaSatuan * jumlah;
-      totalHargaAwalAmount +=
-          hargaAwal * jumlah; // Calculate total original price
+      totalHargaAwalAmount += hargaAwal * jumlah;
 
       // Calculate discount amount per item
       double diskonPerItem = (hargaAwal - hargaSatuan) * jumlah;
@@ -98,7 +97,7 @@ class _KeranjangPembeliState extends State<KeranjangPembeli> {
     setState(() {
       totalHarga = total;
       totalDiskon = totalDiskonAmount;
-      totalHargaAwal = totalHargaAwalAmount; // Set the total original price
+      totalHargaAwal = totalHargaAwalAmount;
     });
   }
 
@@ -239,7 +238,7 @@ class _KeranjangPembeliState extends State<KeranjangPembeli> {
         elevation: 0,
         shadowColor: Colors.transparent,
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.grey[50], // Changed from white to grey[50]
       body:
           isLoading
               ? const Center(
@@ -284,7 +283,7 @@ class _KeranjangPembeliState extends State<KeranjangPembeli> {
                       horizontal: 20,
                       vertical: 12,
                     ),
-                    color: Colors.grey[50],
+                    color: Colors.white, // Changed to white for contrast
                     child: Text(
                       "${keranjangItems.length} item dalam keranjang",
                       style: TextStyle(
@@ -510,180 +509,189 @@ class _KeranjangPembeliState extends State<KeranjangPembeli> {
                       },
                     ),
                   ),
-                  // Bottom Summary
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border(
-                        top: BorderSide(color: Colors.grey[200]!, width: 1),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          spreadRadius: 0,
-                          blurRadius: 10,
-                          offset: const Offset(0, -2),
-                        ),
-                      ],
+                ],
+              ),
+      // Move bottom summary to bottomNavigationBar for better visibility
+      bottomNavigationBar:
+          keranjangItems.isNotEmpty
+              ? Container(
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 20,
+                  bottom: MediaQuery.of(context).padding.bottom + 20,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border(
+                    top: BorderSide(color: Colors.grey[300]!, width: 1),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      spreadRadius: 0,
+                      blurRadius: 15,
+                      offset: const Offset(0, -5),
                     ),
-                    child: Column(
-                      children: [
-                        // Total Harga Awal (show only if there's discount)
-                        if (totalDiskon > 0) ...[
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Total Harga Awal (show only if there's discount)
+                    if (totalDiskon > 0) ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Total Harga Awal",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                          Text(
+                            formatRupiah(totalHargaAwal),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Total Diskon with percentage
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Total Diskon",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                "Total Harga Awal",
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.grey[700],
-                                ),
-                              ),
-                              Text(
-                                formatRupiah(totalHargaAwal),
+                                "-${formatRupiah(totalDiskon)}",
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.grey[700],
+                                  color: Colors.red[600],
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          // Total Diskon with percentage
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
                               Text(
-                                "Total Diskon",
+                                "(${totalHargaAwal > 0 ? ((totalDiskon / totalHargaAwal) * 100).toStringAsFixed(1) : '0'}%)",
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: 12,
+                                  color: Colors.red[600],
                                   fontWeight: FontWeight.w500,
-                                  color: Colors.grey[700],
                                 ),
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    "-${formatRupiah(totalDiskon)}",
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.red[600],
-                                    ),
-                                  ),
-                                  Text(
-                                    "(${totalHargaAwal > 0 ? ((totalDiskon / totalHargaAwal) * 100).toStringAsFixed(1) : '0'}%)",
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.red[600],
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
                         ],
-                        // Total Pembayaran
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              "Total Pembayaran",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.black,
-                              ),
-                            ),
-                            Text(
-                              formatRupiah(totalHarga),
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ],
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    // Total Pembayaran
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          "Total Pembayaran",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
+                          ),
                         ),
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 54,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              if (totalHarga <= 0) {
-                                toastification.show(
-                                  context: context,
-                                  title: const Text(
-                                    'Keranjang kosong, tidak ada yang bisa di-checkout',
-                                  ),
-                                  type: ToastificationType.warning,
-                                  style: ToastificationStyle.fillColored,
-                                  autoCloseDuration: const Duration(seconds: 3),
-                                );
-                                return;
-                              } else if (keranjangItems.length > 10) {
-                                toastification.show(
-                                  context: context,
-                                  title: const Text(
-                                    'Maksimal 10 item dalam keranjang',
-                                  ),
-                                  type: ToastificationType.warning,
-                                  style: ToastificationStyle.fillColored,
-                                  autoCloseDuration: const Duration(seconds: 3),
-                                );
-                                return;
-                              }
-                              // Navigate to payment page
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
-                                      (context) => PembayaranPembeli(
-                                        totalHarga: totalHarga,
-                                      ),
-                                ),
-                              );
-                              toastification.show(
-                                context: context,
-                                title: Text(
-                                  'Checkout dengan total ${formatRupiah(totalHarga)}',
-                                ),
-                                type: ToastificationType.success,
-                                style: ToastificationStyle.fillColored,
-                                autoCloseDuration: const Duration(seconds: 3),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.black,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: Text(
-                              'Checkout - ${formatRupiah(totalHarga)}',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.3,
-                              ),
-                            ),
+                        Text(
+                          formatRupiah(totalHarga),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          if (totalHarga <= 0) {
+                            toastification.show(
+                              context: context,
+                              title: const Text(
+                                'Keranjang kosong, tidak ada yang bisa di-checkout',
+                              ),
+                              type: ToastificationType.warning,
+                              style: ToastificationStyle.fillColored,
+                              autoCloseDuration: const Duration(seconds: 3),
+                            );
+                            return;
+                          } else if (keranjangItems.length > 10) {
+                            toastification.show(
+                              context: context,
+                              title: const Text(
+                                'Maksimal 10 item dalam keranjang',
+                              ),
+                              type: ToastificationType.warning,
+                              style: ToastificationStyle.fillColored,
+                              autoCloseDuration: const Duration(seconds: 3),
+                            );
+                            return;
+                          }
+                          // Navigate to payment page
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (context) =>
+                                      PembayaranPembeli(totalHarga: totalHarga),
+                            ),
+                          );
+                          toastification.show(
+                            context: context,
+                            title: Text(
+                              'Checkout dengan total ${formatRupiah(totalHarga)}',
+                            ),
+                            type: ToastificationType.success,
+                            style: ToastificationStyle.fillColored,
+                            autoCloseDuration: const Duration(seconds: 3),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                          elevation: 2,
+                          shadowColor: Colors.black.withOpacity(0.3),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          'Checkout - ${formatRupiah(totalHarga)}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+              : null,
     );
   }
 }

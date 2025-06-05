@@ -690,10 +690,6 @@ class _ProfilePembeliState extends State<ProfilePembeli> {
         centerTitle: true,
         backgroundColor: Colors.black87,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),

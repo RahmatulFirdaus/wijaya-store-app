@@ -55,6 +55,7 @@ class _InvoiceState extends State<Invoice> with TickerProviderStateMixin {
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(40),
         build: (pw.Context context) {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -62,36 +63,46 @@ class _InvoiceState extends State<Invoice> with TickerProviderStateMixin {
               // Header
               pw.Container(
                 width: double.infinity,
-                padding: const pw.EdgeInsets.all(20),
+                padding: const pw.EdgeInsets.all(24),
                 decoration: pw.BoxDecoration(
                   color: PdfColors.blue,
-                  borderRadius: pw.BorderRadius.circular(10),
+                  borderRadius: pw.BorderRadius.circular(8),
                 ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text(
-                      'INVOICE',
-                      style: pw.TextStyle(
-                        fontSize: 32,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.white,
-                      ),
-                    ),
-                    pw.SizedBox(height: 8),
-                    pw.Text(
-                      '#${faktur.nomorFaktur}',
-                      style: pw.TextStyle(fontSize: 16, color: PdfColors.white),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'INVOICE',
+                          style: pw.TextStyle(
+                            fontSize: 36,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.white,
+                          ),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          '#${faktur.nomorFaktur}',
+                          style: pw.TextStyle(
+                            fontSize: 16,
+                            color: PdfColors.white,
+                            fontWeight: pw.FontWeight.normal,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
 
-              pw.SizedBox(height: 30),
+              pw.SizedBox(height: 40),
 
-              // Customer Info
+              // Customer Info Section
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -99,15 +110,18 @@ class _InvoiceState extends State<Invoice> with TickerProviderStateMixin {
                       pw.Text(
                         'Pelanggan:',
                         style: pw.TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           fontWeight: pw.FontWeight.bold,
                           color: PdfColors.grey700,
                         ),
                       ),
-                      pw.SizedBox(height: 4),
+                      pw.SizedBox(height: 6),
                       pw.Text(
                         faktur.namaPengguna,
-                        style: const pw.TextStyle(fontSize: 16),
+                        style: pw.TextStyle(
+                          fontSize: 16,
+                          fontWeight: pw.FontWeight.normal,
+                        ),
                       ),
                     ],
                   ),
@@ -117,142 +131,216 @@ class _InvoiceState extends State<Invoice> with TickerProviderStateMixin {
                       pw.Text(
                         'Tanggal:',
                         style: pw.TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           fontWeight: pw.FontWeight.bold,
                           color: PdfColors.grey700,
                         ),
                       ),
-                      pw.SizedBox(height: 4),
+                      pw.SizedBox(height: 6),
                       pw.Text(
                         faktur.tanggalFaktur,
-                        style: const pw.TextStyle(fontSize: 16),
+                        style: pw.TextStyle(
+                          fontSize: 16,
+                          fontWeight: pw.FontWeight.normal,
+                        ),
                       ),
                     ],
                   ),
                 ],
               ),
 
-              pw.SizedBox(height: 30),
+              pw.SizedBox(height: 40),
 
-              // Items Table
+              // Improved Items Table
+              pw.Text(
+                'Detail Items:',
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.grey800,
+                ),
+              ),
+
+              pw.SizedBox(height: 16),
+
               pw.Table(
-                border: pw.TableBorder.all(color: PdfColors.grey300),
+                border: pw.TableBorder.all(color: PdfColors.grey400, width: 1),
+                columnWidths: {
+                  0: const pw.FlexColumnWidth(1), // No
+                  1: const pw.FlexColumnWidth(4), // Item
+                  2: const pw.FlexColumnWidth(1.5), // Qty
+                  3: const pw.FlexColumnWidth(2.5), // Harga
+                  4: const pw.FlexColumnWidth(2.5), // Total
+                },
                 children: [
-                  // Header
+                  // Header Row
                   pw.TableRow(
-                    decoration: pw.BoxDecoration(color: PdfColors.grey100),
+                    decoration: pw.BoxDecoration(color: PdfColors.grey200),
                     children: [
-                      pw.Container(
-                        padding: const pw.EdgeInsets.all(12),
-                        child: pw.Text(
-                          'Item',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                        ),
+                      _buildTableCell(
+                        'No',
+                        isHeader: true,
+                        alignment: pw.Alignment.center,
                       ),
-                      pw.Container(
-                        padding: const pw.EdgeInsets.all(12),
-                        child: pw.Text(
-                          'Qty',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                          textAlign: pw.TextAlign.center,
-                        ),
+                      _buildTableCell(
+                        'Item',
+                        isHeader: true,
+                        alignment: pw.Alignment.centerLeft,
                       ),
-                      pw.Container(
-                        padding: const pw.EdgeInsets.all(12),
-                        child: pw.Text(
-                          'Harga',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                          textAlign: pw.TextAlign.center,
-                        ),
+                      _buildTableCell(
+                        'Qty',
+                        isHeader: true,
+                        alignment: pw.Alignment.center,
                       ),
-                      pw.Container(
-                        padding: const pw.EdgeInsets.all(12),
-                        child: pw.Text(
-                          'Total',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                          textAlign: pw.TextAlign.center,
-                        ),
+                      _buildTableCell(
+                        'Harga',
+                        isHeader: true,
+                        alignment: pw.Alignment.center,
+                      ),
+                      _buildTableCell(
+                        'Total',
+                        isHeader: true,
+                        alignment: pw.Alignment.center,
                       ),
                     ],
                   ),
 
-                  // Items
-                  ...faktur.items.map((item) {
+                  // Item Rows
+                  ...faktur.items.asMap().entries.map((entry) {
+                    int index = entry.key;
+                    FakturItem item = entry.value;
                     double harga = double.tryParse(item.harga.toString()) ?? 0;
                     int quantity =
                         int.tryParse(item.jumlahOrder.toString()) ?? 0;
                     double itemTotal = harga * quantity;
 
                     return pw.TableRow(
+                      decoration: pw.BoxDecoration(
+                        color:
+                            index % 2 == 0 ? PdfColors.white : PdfColors.grey50,
+                      ),
                       children: [
+                        _buildTableCell(
+                          '${index + 1}',
+                          alignment: pw.Alignment.center,
+                        ),
                         pw.Container(
                           padding: const pw.EdgeInsets.all(12),
                           child: pw.Column(
                             crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            mainAxisAlignment: pw.MainAxisAlignment.center,
                             children: [
                               pw.Text(
                                 item.namaBarang,
                                 style: pw.TextStyle(
                                   fontWeight: pw.FontWeight.bold,
+                                  fontSize: 11,
                                 ),
                               ),
-                              pw.Text(
-                                '${item.warna} - Size ${item.ukuran}',
-                                style: pw.TextStyle(
-                                  fontSize: 10,
-                                  color: PdfColors.grey600,
-                                ),
+                              pw.SizedBox(height: 4),
+                              pw.Row(
+                                children: [
+                                  pw.Container(
+                                    padding: const pw.EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: pw.BoxDecoration(
+                                      color: PdfColors.blue100,
+                                      borderRadius: pw.BorderRadius.circular(3),
+                                    ),
+                                    child: pw.Text(
+                                      item.warna,
+                                      style: pw.TextStyle(
+                                        fontSize: 8,
+                                        color: PdfColors.blue800,
+                                        fontWeight: pw.FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  pw.SizedBox(width: 4),
+                                  pw.Container(
+                                    padding: const pw.EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: pw.BoxDecoration(
+                                      color: PdfColors.green100,
+                                      borderRadius: pw.BorderRadius.circular(3),
+                                    ),
+                                    child: pw.Text(
+                                      'Size ${item.ukuran}',
+                                      style: pw.TextStyle(
+                                        fontSize: 8,
+                                        color: PdfColors.green800,
+                                        fontWeight: pw.FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
                         ),
-                        pw.Container(
-                          padding: const pw.EdgeInsets.all(12),
-                          child: pw.Text(
-                            '$quantity',
-                            textAlign: pw.TextAlign.center,
-                          ),
+                        _buildTableCell(
+                          '$quantity',
+                          alignment: pw.Alignment.center,
                         ),
-                        pw.Container(
-                          padding: const pw.EdgeInsets.all(12),
-                          child: pw.Text(
-                            'Rp ${_formatCurrency(harga)}',
-                            textAlign: pw.TextAlign.center,
-                          ),
+                        _buildTableCell(
+                          'Rp ${_formatCurrency(harga)}',
+                          alignment: pw.Alignment.center,
                         ),
-                        pw.Container(
-                          padding: const pw.EdgeInsets.all(12),
-                          child: pw.Text(
-                            'Rp ${_formatCurrency(itemTotal)}',
-                            textAlign: pw.TextAlign.center,
-                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                          ),
+                        _buildTableCell(
+                          'Rp ${_formatCurrency(itemTotal)}',
+                          alignment: pw.Alignment.center,
+                          isBold: true,
                         ),
                       ],
                     );
                   }).toList(),
+
+                  // Subtotal Row (optional)
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(color: PdfColors.grey100),
+                    children: [
+                      _buildTableCell('', alignment: pw.Alignment.center),
+                      _buildTableCell('', alignment: pw.Alignment.center),
+                      _buildTableCell('', alignment: pw.Alignment.center),
+                      _buildTableCell(
+                        'Subtotal:',
+                        alignment: pw.Alignment.centerRight,
+                        isBold: true,
+                      ),
+                      _buildTableCell(
+                        'Rp ${_formatCurrency(total)}',
+                        alignment: pw.Alignment.center,
+                        isBold: true,
+                      ),
+                    ],
+                  ),
                 ],
               ),
 
               pw.SizedBox(height: 30),
 
-              // Total
+              // Final Total Section
               pw.Container(
                 width: double.infinity,
                 padding: const pw.EdgeInsets.all(20),
                 decoration: pw.BoxDecoration(
                   color: PdfColors.grey800,
-                  borderRadius: pw.BorderRadius.circular(10),
+                  borderRadius: pw.BorderRadius.circular(8),
                 ),
                 child: pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
                     pw.Text(
-                      'Total Keseluruhan',
+                      'TOTAL KESELURUHAN',
                       style: pw.TextStyle(
                         fontSize: 18,
                         fontWeight: pw.FontWeight.bold,
                         color: PdfColors.white,
+                        letterSpacing: 0.5,
                       ),
                     ),
                     pw.Text(
@@ -266,6 +354,29 @@ class _InvoiceState extends State<Invoice> with TickerProviderStateMixin {
                   ],
                 ),
               ),
+
+              pw.Spacer(),
+
+              // Footer
+              pw.Divider(color: PdfColors.grey300),
+              pw.SizedBox(height: 12),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'Terima kasih atas pembelian Anda!',
+                    style: pw.TextStyle(
+                      fontSize: 12,
+                      color: PdfColors.grey600,
+                      fontStyle: pw.FontStyle.italic,
+                    ),
+                  ),
+                  pw.Text(
+                    'Invoice dibuat secara otomatis',
+                    style: pw.TextStyle(fontSize: 10, color: PdfColors.grey500),
+                  ),
+                ],
+              ),
             ],
           );
         },
@@ -274,6 +385,34 @@ class _InvoiceState extends State<Invoice> with TickerProviderStateMixin {
 
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdf.save(),
+    );
+  }
+
+  // Helper method to build table cells with consistent styling
+  pw.Widget _buildTableCell(
+    String text, {
+    bool isHeader = false,
+    bool isBold = false,
+    pw.Alignment alignment = pw.Alignment.centerLeft,
+  }) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(12),
+      alignment: alignment,
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: isHeader ? 12 : 10,
+          fontWeight:
+              (isHeader || isBold) ? pw.FontWeight.bold : pw.FontWeight.normal,
+          color: isHeader ? PdfColors.grey800 : PdfColors.black,
+        ),
+        textAlign:
+            alignment == pw.Alignment.center
+                ? pw.TextAlign.center
+                : alignment == pw.Alignment.centerRight
+                ? pw.TextAlign.right
+                : pw.TextAlign.left,
+      ),
     );
   }
 

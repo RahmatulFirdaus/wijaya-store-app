@@ -783,9 +783,7 @@ class GetRiwayatTransaksi {
             )
             .toList();
       } else {
-        throw Exception(
-          'Failed to load transaction history, status code: ${response.statusCode}',
-        );
+        return [];
       }
     } catch (e) {
       throw Exception('Failed to load transaction history: $e');
