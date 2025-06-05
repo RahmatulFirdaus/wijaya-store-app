@@ -4,6 +4,59 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 //CLASS GET
 
+class DataAkun {
+  final int id;
+  final String username;
+  final String password;
+  final String nama;
+  final String email;
+  final String nomorTelp;
+  final String role;
+  final String createdAt;
+
+  DataAkun({
+    required this.id,
+    required this.username,
+    required this.password,
+    required this.nama,
+    required this.email,
+    required this.nomorTelp,
+    required this.role,
+    required this.createdAt,
+  });
+
+  factory DataAkun.fromJson(Map<String, dynamic> json) {
+    return DataAkun(
+      id: json['id'],
+      username: json['username'],
+      password: json['password'],
+      nama: json['nama'],
+      email: json['email'],
+      nomorTelp: json['nomor_telp'],
+      role: json['role'],
+      createdAt: json['created_at'],
+    );
+  }
+
+  static Future<List<DataAkun>> fetchDataAkun() async {
+    final url = Uri.parse('http://192.168.1.96:3000/api/adminTampilDataAkun');
+
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        final List akunList = body['data'];
+        return akunList.map((e) => DataAkun.fromJson(e)).toList();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      throw Exception('Kesalahan: $e');
+    }
+  }
+}
+
 class PengirimanItem {
   String nama;
   String warna;
@@ -427,8 +480,75 @@ class DetailIzinKaryawan {
 }
 
 //CLASS POST
+class TambahAkunService {
+  static Future<String> tambahAkun({
+    required String username,
+    required String password,
+    required String nama,
+    required String email,
+    required String nomorTelp,
+    required String role,
+  }) async {
+    final url = Uri.parse('http://192.168.1.96:3000/api/adminTambahAkun');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': username,
+          'password': password,
+          'nama_lengkap': nama,
+          'email': email,
+          'nomor_telepon': nomorTelp,
+          'role': role,
+        }),
+      );
+
+      final body = jsonDecode(response.body);
+      return body['pesan'] ?? 'Akun berhasil ditambahkan';
+    } catch (e) {
+      return 'Gagal menambah akun: $e';
+    }
+  }
+}
 
 //CLASS UPDATE
+class UpdateAkunService {
+  static Future<String> updateAkun({
+    required String id,
+    required String username,
+    required String password,
+    required String namaLengkap,
+    required String email,
+    required String nomorTelp,
+    required String role,
+  }) async {
+    final url = Uri.parse('http://192.168.1.96:3000/api/adminUpdateAkun/$id');
+
+    try {
+      final response = await http.patch(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'id': id,
+          'username': username,
+          'password': password,
+          'nama_lengkap': namaLengkap,
+          'email': email,
+          'nomor_telepon': nomorTelp,
+          'role': role,
+        }),
+      );
+
+      final body = jsonDecode(response.body);
+      return body['pesan'] ?? 'Akun berhasil diperbarui';
+    } catch (e) {
+      return 'Gagal update akun: $e';
+    }
+  }
+}
+
 class UpdateIzinKaryawanService {
   static Future<String> updateStatusIzinKaryawan({
     required String id,
@@ -487,7 +607,16 @@ class UpdatePengirimanService {
   }
 }
 
-
-
-
 //CLASS DELETE
+class HapusAkunService {
+  static Future<http.Response> hapusAkun(int id) async {
+    final url = Uri.parse('http://192.168.1.96:3000/api/adminDeleteAkun/$id');
+
+    try {
+      final response = await http.delete(url);
+      return response;
+    } catch (e) {
+      throw Exception('Gagal menghapus akun: $e');
+    }
+  }
+}

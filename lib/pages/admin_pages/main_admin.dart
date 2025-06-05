@@ -3,7 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:frontend/pages/admin_pages/list_chat_pembeli.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_karyawan_pages/admin_absensi_karyawan.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_karyawan_pages/admin_pengajuan_izin_karyawan.dart';
-import 'package:frontend/pages/admin_pages/pages/admin_master_pages/admin_akun.dart';
+import 'package:frontend/pages/admin_pages/pages/admin_master_pages/admin_lobby_akun.dart';
+import 'package:frontend/pages/admin_pages/pages/admin_master_pages/manajemen%20akun/admin_akun.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_master_pages/admin_gaji_karyawan.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_master_pages/admin_harga_original.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_mix_online_offline/admin_penjualan_harian.dart';
@@ -266,7 +267,8 @@ class _MainAdminState extends State<MainAdmin> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            onTap: (context) => _navigateToPage(context, const AkunPage()),
+            onTap:
+                (context) => _navigateToPage(context, const AdminLobbyAkun()),
           ),
         ],
       ),
