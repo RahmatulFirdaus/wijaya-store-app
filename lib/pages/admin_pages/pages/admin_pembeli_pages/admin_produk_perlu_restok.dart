@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/models/admin_model.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class ProdukRestokPage extends StatefulWidget {
   const ProdukRestokPage({super.key});
@@ -58,6 +61,138 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
     }
   }
 
+  Future<void> _exportToPdf() async {
+    try {
+      final pdf = pw.Document();
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          build: (pw.Context context) {
+            return [
+              pw.Header(
+                level: 0,
+                child: pw.Text(
+                  'LAPORAN PRODUK PERLU RESTOK',
+                  style: pw.TextStyle(
+                    fontSize: 20,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 20),
+              pw.Text(
+                'Tanggal: ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
+                style: const pw.TextStyle(fontSize: 12),
+              ),
+              pw.Text(
+                'Total Produk: ${produkList.length}',
+                style: pw.TextStyle(
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 20),
+              pw.Table(
+                border: pw.TableBorder.all(),
+                columnWidths: {
+                  0: const pw.FlexColumnWidth(1),
+                  1: const pw.FlexColumnWidth(3),
+                  2: const pw.FlexColumnWidth(1.5),
+                  3: const pw.FlexColumnWidth(1.5),
+                  4: const pw.FlexColumnWidth(1),
+                },
+                children: [
+                  pw.TableRow(
+                    decoration: const pw.BoxDecoration(
+                      color: PdfColors.grey300,
+                    ),
+                    children: [
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          'No',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          'Nama Produk',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          'Ukuran',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          'Warna',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          'Stok',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  ...produkList.asMap().entries.map((entry) {
+                    int index = entry.key;
+                    ProdukPerluRestok produk = entry.value;
+                    return pw.TableRow(
+                      children: [
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text('${index + 1}'),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text(produk.namaProduk),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text(produk.ukuran.toString()),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text(produk.warna),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text('${produk.stok}'),
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ],
+              ),
+            ];
+          },
+        ),
+      );
+
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdf.save(),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal mengekspor PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _fadeController.dispose();
@@ -67,17 +202,19 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: Colors.white,
       appBar: _buildAppBar(),
       body: _buildBody(),
-      floatingActionButton: _buildFloatingActionButton(),
+      floatingActionButton:
+          produkList.isNotEmpty ? _buildFloatingActionButton() : null,
     );
   }
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       backgroundColor: Colors.black,
-      elevation: 0,
+      elevation: 2,
+      shadowColor: Colors.grey.withOpacity(0.3),
       leading: IconButton(
         icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
         onPressed: () => Navigator.pop(context),
@@ -87,7 +224,7 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withOpacity(0.15),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
@@ -109,18 +246,24 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
         ],
       ),
       actions: [
+        if (produkList.isNotEmpty)
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
+            onPressed: _exportToPdf,
+            tooltip: 'Export PDF',
+          ),
         Container(
           margin: const EdgeInsets.only(right: 16),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.red.withOpacity(0.2),
+            color: Colors.white.withOpacity(0.15),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.red.withOpacity(0.3)),
+            border: Border.all(color: Colors.white.withOpacity(0.3)),
           ),
           child: Text(
             '${produkList.length}',
             style: const TextStyle(
-              color: Colors.red,
+              color: Colors.white,
               fontWeight: FontWeight.bold,
               fontSize: 14,
             ),
@@ -159,18 +302,19 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.grey.withOpacity(0.1),
               borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.withOpacity(0.3)),
             ),
             child: const CircularProgressIndicator(
-              color: Colors.white,
+              color: Colors.black,
               strokeWidth: 2,
             ),
           ),
           const SizedBox(height: 24),
           const Text(
             'Memuat data produk...',
-            style: TextStyle(color: Colors.white70, fontSize: 16),
+            style: TextStyle(color: Colors.black54, fontSize: 16),
           ),
         ],
       ),
@@ -183,19 +327,19 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
         margin: const EdgeInsets.all(24),
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.1),
+          color: Colors.grey.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.red.withOpacity(0.3)),
+          border: Border.all(color: Colors.grey.withOpacity(0.3)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, color: Colors.red, size: 48),
+            const Icon(Icons.error_outline, color: Colors.black54, size: 48),
             const SizedBox(height: 16),
             const Text(
               'Gagal Memuat Data',
               style: TextStyle(
-                color: Colors.white,
+                color: Colors.black,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
@@ -203,18 +347,15 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
             const SizedBox(height: 8),
             Text(
               errorMessage,
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
-                fontSize: 14,
-              ),
+              style: const TextStyle(color: Colors.black54, fontSize: 14),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _loadData,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.black,
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -233,8 +374,9 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
         margin: const EdgeInsets.all(24),
         padding: const EdgeInsets.all(32),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
+          color: Colors.grey.withOpacity(0.05),
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.withOpacity(0.2)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -242,12 +384,12 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.2),
+                color: Colors.grey.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.check_circle_outline,
-                color: Colors.green,
+                color: Colors.black54,
                 size: 48,
               ),
             ),
@@ -255,18 +397,15 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
             const Text(
               'Semua Produk Tersedia',
               style: TextStyle(
-                color: Colors.white,
+                color: Colors.black,
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 8),
-            Text(
+            const Text(
               'Tidak ada produk yang perlu direstok saat ini',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Colors.black54, fontSize: 14),
               textAlign: TextAlign.center,
             ),
           ],
@@ -280,18 +419,16 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.red.withOpacity(0.1), Colors.orange.withOpacity(0.1)],
-        ),
+        color: Colors.grey.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.withOpacity(0.2)),
+        border: Border.all(color: Colors.grey.withOpacity(0.3)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: const BoxDecoration(
-              color: Colors.red,
+              color: Colors.black,
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.warning, color: Colors.white, size: 20),
@@ -304,17 +441,14 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
                 const Text(
                   'Peringatan Stok Rendah',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: Colors.black,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
                 ),
                 Text(
                   '${produkList.length} produk memerlukan restok segera',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: 14,
-                  ),
+                  style: const TextStyle(color: Colors.black54, fontSize: 14),
                 ),
               ],
             ),
@@ -342,20 +476,27 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.grey.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+      child: IntrinsicHeight(
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Product Image
             Container(
               width: 80,
-              height: 80,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.grey.withOpacity(0.1),
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(12),
                   bottomLeft: Radius.circular(12),
@@ -376,7 +517,7 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
                       ),
                       child: const Icon(
                         Icons.image_not_supported,
-                        color: Colors.white54,
+                        color: Colors.black38,
                         size: 32,
                       ),
                     );
@@ -390,7 +531,7 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
                       child: const Center(
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white54,
+                          color: Colors.black38,
                         ),
                       ),
                     );
@@ -404,35 +545,36 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       produk.namaProduk,
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: Colors.black,
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 8),
-                    Row(
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
                         _buildDetailChip(
                           'Ukuran ${produk.ukuran}',
-                          Colors.blue,
+                          Colors.black54,
                           Icons.straighten,
                         ),
-                        const SizedBox(width: 8),
                         _buildDetailChip(
                           produk.warna,
-                          Colors.purple,
+                          Colors.black54,
                           Icons.color_lens_outlined,
                         ),
-                        const SizedBox(width: 8),
                         _buildDetailChip(
                           'Stok: ${produk.stok}',
-                          produk.stok < 3 ? Colors.red : Colors.green,
+                          produk.stok < 3 ? Colors.black : Colors.black54,
                           Icons.inventory_2_outlined,
                         ),
                       ],
@@ -451,26 +593,46 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 16),
+          Icon(icon, color: color, size: 14),
           const SizedBox(width: 4),
-          Text(label, style: TextStyle(color: color, fontSize: 12)),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget? _buildFloatingActionButton() {
-    // Bisa ditambahkan jika butuh tombol reload manual
-    return FloatingActionButton(
-      onPressed: _loadData,
-      backgroundColor: Colors.redAccent,
-      child: const Icon(Icons.refresh),
+  Widget _buildFloatingActionButton() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        FloatingActionButton(
+          heroTag: "pdf",
+          onPressed: _exportToPdf,
+          backgroundColor: Colors.black,
+          child: const Icon(Icons.picture_as_pdf, color: Colors.white),
+        ),
+        const SizedBox(height: 16),
+        FloatingActionButton(
+          heroTag: "refresh",
+          onPressed: _loadData,
+          backgroundColor: Colors.black,
+          child: const Icon(Icons.refresh, color: Colors.white),
+        ),
+      ],
     );
   }
 }

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/models/admin_model.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';

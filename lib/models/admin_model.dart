@@ -3,6 +3,113 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 //CLASS GET
+
+class PengirimanItem {
+  String nama;
+  String warna;
+  int ukuran;
+  String hargaSatuan;
+  int jumlahOrder;
+
+  PengirimanItem({
+    required this.nama,
+    required this.warna,
+    required this.ukuran,
+    required this.hargaSatuan,
+    required this.jumlahOrder,
+  });
+
+  factory PengirimanItem.fromJson(Map<String, dynamic> json) {
+    return PengirimanItem(
+      nama: json['nama'].toString(),
+      warna: json['warna'].toString(),
+      ukuran: json['ukuran'],
+      hargaSatuan: json['harga_satuan'].toString(),
+      jumlahOrder: json['jumlah_order'],
+    );
+  }
+}
+
+class DetailPengiriman {
+  int idPengiriman;
+  String namaPengguna; // ditambahkan
+  String alamatPengiriman;
+  String statusPengiriman;
+  String totalHarga;
+  String tanggalPengiriman;
+  List<PengirimanItem> items;
+
+  DetailPengiriman({
+    required this.idPengiriman,
+    required this.namaPengguna,
+    required this.alamatPengiriman,
+    required this.statusPengiriman,
+    required this.totalHarga,
+    required this.tanggalPengiriman,
+    required this.items,
+  });
+
+  factory DetailPengiriman.fromJson(Map<String, dynamic> json) {
+    var itemsFromJson = json['items'] as List;
+    List<PengirimanItem> listItems =
+        itemsFromJson.map((i) => PengirimanItem.fromJson(i)).toList();
+
+    return DetailPengiriman(
+      idPengiriman: json['id_pengiriman'],
+      namaPengguna: json['nama_pengguna'].toString(),
+      alamatPengiriman: json['alamat_pengiriman'].toString(),
+      statusPengiriman: json['status_pengiriman'].toString(),
+      totalHarga: json['total_harga'].toString(),
+      tanggalPengiriman: json['tanggal_pengiriman'].toString(),
+      items: listItems,
+    );
+  }
+
+  static Future<List<DetailPengiriman>?> getPengiriman() async {
+    final url = Uri.parse('http://192.168.1.96:3000/api/adminTampilPengiriman');
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final jsonResponse = jsonDecode(response.body);
+        final List<dynamic> dataList = jsonResponse['data'];
+        return dataList.map((e) => DetailPengiriman.fromJson(e)).toList();
+      } else {
+        return null;
+      }
+    } catch (e) {
+      throw Exception('Gagal memuat data pengiriman: $e');
+    }
+  }
+
+  static Future<DetailPengiriman?> getPengirimanDetail(int id) async {
+    final url = Uri.parse(
+      'http://192.168.1.96:3000/api/adminTampilPengirimanDetail/$id',
+    );
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final jsonResponse = jsonDecode(response.body);
+        final data = jsonResponse['data']; // data langsung objek, bukan list
+        return DetailPengiriman.fromJson(data);
+      } else {
+        return null;
+      }
+    } catch (e) {
+      throw Exception('Gagal memuat detail pengiriman: $e');
+    }
+  }
+}
+
 class ProdukPerluRestok {
   String namaProduk;
   String linkGambarVarian;
@@ -213,9 +320,7 @@ class ApiService {
         throw Exception('Format data tidak valid');
       }
     } else {
-      throw Exception(
-        'Gagal memuat data faktur online: ${response.statusCode}',
-      );
+      return [];
     }
   }
 }
@@ -353,6 +458,34 @@ class UpdateIzinKaryawanService {
   }
 }
 
+class UpdatePengirimanService {
+  static Future<String> updateStatusPengiriman({
+    required String id,
+    required String status,
+  }) async {
+    final url = Uri.parse(
+      'http://192.168.1.96:3000/api/adminUpdatePengiriman/$id',
+    );
+
+    try {
+      final response = await http.patch(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'status_pengiriman': status}),
+      );
+
+      final body = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return body['pesan'] ?? 'Status pengiriman berhasil diupdate';
+      } else {
+        return body['pesan'] ?? 'Gagal update status pengiriman';
+      }
+    } catch (e) {
+      return 'Terjadi kesalahan: $e';
+    }
+  }
+}
 
 
 
