@@ -4,6 +4,7 @@ import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/admin_pengi
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:toastification/toastification.dart';
 
 class PengirimanPage extends StatefulWidget {
   const PengirimanPage({super.key});
@@ -33,9 +34,17 @@ class _PengirimanPageState extends State<PengirimanPage> {
       setState(() {
         isLoading = false;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+
+      if (mounted) {
+        toastification.show(
+          context: context,
+          title: Text('Error loading data: $e'),
+          type: ToastificationType.error,
+          autoCloseDuration: const Duration(seconds: 4),
+          alignment: Alignment.bottomCenter,
+          icon: const Icon(Icons.error_outline, color: Colors.white),
+        );
+      }
     }
   }
 

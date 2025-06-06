@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:frontend/models/admin_model.dart';
+import 'package:toastification/toastification.dart';
 
 class AdminEditAkun extends StatefulWidget {
   final DataAkun akun;
@@ -229,15 +230,12 @@ class _AdminEditAkunState extends State<AdminEditAkun> {
     FocusScope.of(context).unfocus();
 
     if (!_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Mohon periksa kembali data yang diinput'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
+      toastification.show(
+        context: context,
+        title: const Text('Mohon periksa kembali data yang diinput'),
+        type: ToastificationType.error,
+        autoCloseDuration: const Duration(seconds: 3),
+        alignment: Alignment.bottomCenter,
       );
       return;
     }
@@ -258,16 +256,15 @@ class _AdminEditAkunState extends State<AdminEditAkun> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result),
-            backgroundColor:
-                result.contains('Gagal') ? Colors.red : Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
+        toastification.show(
+          context: context,
+          title: Text(result),
+          type:
+              result.contains('Gagal')
+                  ? ToastificationType.error
+                  : ToastificationType.success,
+          autoCloseDuration: const Duration(seconds: 3),
+          alignment: Alignment.bottomCenter,
         );
 
         if (!result.contains('Gagal')) {
@@ -280,15 +277,12 @@ class _AdminEditAkunState extends State<AdminEditAkun> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Terjadi kesalahan: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
+        toastification.show(
+          context: context,
+          title: Text('Terjadi kesalahan: ${e.toString()}'),
+          type: ToastificationType.error,
+          autoCloseDuration: const Duration(seconds: 4),
+          alignment: Alignment.bottomCenter,
         );
       }
     } finally {

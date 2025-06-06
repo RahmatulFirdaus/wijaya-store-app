@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/models/karyawan_model.dart';
 import 'package:frontend/pages/karyawan_pages/pengajuan_izin/tambah_pengajuan_izin.dart';
+import 'package:toastification/toastification.dart';
 
 class LobbyPengajuanIzin extends StatefulWidget {
   const LobbyPengajuanIzin({super.key});
@@ -38,12 +39,16 @@ class _LobbyPengajuanIzinState extends State<LobbyPengajuanIzin> {
       setState(() {
         isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error loading data: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        toastification.show(
+          context: context,
+          title: Text('Error loading data: $e'),
+          type: ToastificationType.error,
+          autoCloseDuration: const Duration(seconds: 4),
+          alignment: Alignment.bottomCenter,
+          icon: const Icon(Icons.error_outline, color: Colors.white),
+        );
+      }
     }
   }
 
@@ -180,51 +185,32 @@ class _LobbyPengajuanIzinState extends State<LobbyPengajuanIzin> {
 
         // Panggil API delete
         await HapusPengajuanIzin.hapusPengajuanIzin(id);
-
-        // Tutup loading dialog
-        Navigator.of(context).pop();
-
-        // Refresh data
+        Navigator.of(context).pop(); // Close loading dialog
         await loadData();
 
-        // Tampilkan pesan sukses
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 8),
-                Text('Pengajuan izin berhasil dihapus'),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
+        if (mounted) {
+          toastification.show(
+            context: context,
+            title: const Text('Pengajuan izin berhasil dihapus'),
+            type: ToastificationType.success,
+            autoCloseDuration: const Duration(seconds: 3),
+            alignment: Alignment.bottomCenter,
+            icon: const Icon(Icons.check_circle, color: Colors.white),
+          );
+        }
       } catch (e) {
-        // Tutup loading dialog jika masih terbuka
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(); // Close loading dialog
 
-        // Tampilkan pesan error
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.error, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(child: Text('Error: $e')),
-              ],
-            ),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
+        if (mounted) {
+          toastification.show(
+            context: context,
+            title: Text('Error: $e'),
+            type: ToastificationType.error,
+            autoCloseDuration: const Duration(seconds: 4),
+            alignment: Alignment.bottomCenter,
+            icon: const Icon(Icons.error_outline, color: Colors.white),
+          );
+        }
       }
     }
   }

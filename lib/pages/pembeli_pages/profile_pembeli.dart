@@ -1,123 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-
-// Class untuk menampilkan data pengguna
-class GetDataPengguna {
-  String id;
-  String nama;
-  String username;
-  String password;
-  String email;
-  String nomorTelp;
-  String role;
-
-  GetDataPengguna({
-    required this.id,
-    required this.nama,
-    required this.username,
-    required this.password,
-    required this.email,
-    required this.nomorTelp,
-    required this.role,
-  });
-
-  static Future<GetDataPengguna> getDataPengguna() async {
-    const storage = FlutterSecureStorage();
-    var token = await storage.read(key: 'token');
-    Uri url = Uri.parse("http://192.168.1.96:3000/api/pembeliProfile");
-
-    try {
-      var response = await http.get(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        var jsonData = jsonDecode(response.body);
-        var dataList = jsonData['data'] as List;
-
-        if (dataList.isEmpty) {
-          throw Exception('User data is empty');
-        }
-
-        var data = dataList.first;
-
-        return GetDataPengguna(
-          id: data['id'].toString(),
-          nama: data['nama'].toString(),
-          username: data['username'].toString(),
-          password: data['password'].toString(),
-          email: data['email'].toString(),
-          nomorTelp: data['nomor_telp'].toString(),
-          role: data['role'].toString(),
-        );
-      } else {
-        throw Exception(
-          'Failed to load user data, status code: ${response.statusCode}',
-        );
-      }
-    } catch (e) {
-      throw Exception('Failed to load user data: $e');
-    }
-  }
-}
-
-// Class untuk memperbarui profil pengguna
-class UpdateProfileService {
-  final String baseUrl = 'http://192.168.1.96:3000/api';
-  final String token;
-
-  UpdateProfileService({required this.token});
-
-  Future<String?> _patchProfileData(
-    String endpoint,
-    Map<String, dynamic> data,
-  ) async {
-    final url = Uri.parse('$baseUrl/$endpoint');
-
-    try {
-      final response = await http.patch(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(data),
-      );
-
-      final jsonData = jsonDecode(response.body);
-      return jsonData['pesan'];
-    } catch (e) {
-      print('Error: $e');
-      return 'Terjadi kesalahan';
-    }
-  }
-
-  Future<String?> updatePassword(String password) {
-    return _patchProfileData('pembeliUpdateProfilePassword', {
-      'password': password,
-    });
-  }
-
-  Future<String?> updateNama(String nama) {
-    return _patchProfileData('pembeliUpdateProfileNama', {'nama': nama});
-  }
-
-  Future<String?> updateNomorTelepon(String nomorTelp) {
-    return _patchProfileData('pembeliUpdateProfileNomorTelepon', {
-      'nomor_telp': nomorTelp,
-    });
-  }
-
-  Future<String?> updateEmail(String email) {
-    return _patchProfileData('pembeliUpdateProfileEmail', {'email': email});
-  }
-}
+import 'package:frontend/models/pembeli_model.dart';
+import 'package:toastification/toastification.dart';
 
 // Halaman Edit Profile
 class EditProfilePage extends StatefulWidget {
@@ -220,29 +104,38 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
         // Tampilkan hasil update
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Profil berhasil diperbarui!'),
-              backgroundColor: Colors.green,
-            ),
+          toastification.show(
+            context: context,
+            title: const Text('Profil berhasil diperbarui!'),
+            type: ToastificationType.success,
+            autoCloseDuration: const Duration(seconds: 3),
+            alignment: Alignment.bottomCenter,
+            icon: const Icon(Icons.check_circle, color: Colors.white),
           );
           Navigator.pop(context);
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Tidak ada perubahan yang dilakukan'),
-              backgroundColor: Colors.orange,
-            ),
+          toastification.show(
+            context: context,
+            title: const Text('Tidak ada perubahan yang dilakukan'),
+            type: ToastificationType.warning,
+            autoCloseDuration: const Duration(seconds: 3),
+            alignment: Alignment.bottomCenter,
+            icon: const Icon(Icons.info_outline, color: Colors.white),
           );
         }
       }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        toastification.show(
+          context: context,
+          title: Text('Error: $e'),
+          type: ToastificationType.error,
+          autoCloseDuration: const Duration(seconds: 4),
+          alignment: Alignment.bottomCenter,
+          icon: const Icon(Icons.error_outline, color: Colors.white),
         );
       }
     }

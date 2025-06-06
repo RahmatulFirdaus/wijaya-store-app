@@ -3,6 +3,7 @@ import 'package:frontend/models/admin_model.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:toastification/toastification.dart';
 
 class ProdukRestokPage extends StatefulWidget {
   const ProdukRestokPage({super.key});
@@ -184,12 +185,16 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
         onLayout: (PdfPageFormat format) async => pdf.save(),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal mengekspor PDF: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        toastification.show(
+          context: context,
+          title: Text('Gagal mengekspor PDF: $e'),
+          type: ToastificationType.error,
+          autoCloseDuration: const Duration(seconds: 4),
+          alignment: Alignment.bottomCenter,
+          icon: const Icon(Icons.error_outline, color: Colors.white),
+        );
+      }
     }
   }
 

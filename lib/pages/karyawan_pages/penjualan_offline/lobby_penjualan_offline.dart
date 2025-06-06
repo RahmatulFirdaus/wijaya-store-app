@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/models/karyawan_model.dart';
-import 'main_tambah_penjualan_offline.dart'; // Pastikan import ini ada
+import 'package:toastification/toastification.dart';
+import 'main_tambah_penjualan_offline.dart';
 
 class LobbyPenjualanOffline extends StatefulWidget {
   const LobbyPenjualanOffline({super.key});
@@ -50,22 +51,13 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
         isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(child: Text('Error loading data: $e')),
-              ],
-            ),
-            backgroundColor: Colors.red.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            margin: const EdgeInsets.all(16),
-          ),
+        toastification.show(
+          context: context,
+          title: Text('Error loading data: $e'),
+          type: ToastificationType.error,
+          autoCloseDuration: const Duration(seconds: 4),
+          alignment: Alignment.bottomCenter,
+          icon: const Icon(Icons.error_outline, color: Colors.white),
         );
       }
     }
@@ -120,38 +112,28 @@ class _LobbyPenjualanOfflineState extends State<LobbyPenjualanOffline>
   }
 
   void _showSuccessToast(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
+    if (!mounted) return;
+
+    toastification.show(
+      context: context,
+      title: Text(message),
+      type: ToastificationType.success,
+      autoCloseDuration: const Duration(seconds: 3),
+      alignment: Alignment.bottomCenter,
+      icon: const Icon(Icons.check_circle, color: Colors.white),
     );
   }
 
   void _showErrorToast(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
+    if (!mounted) return;
+
+    toastification.show(
+      context: context,
+      title: Text(message),
+      type: ToastificationType.error,
+      autoCloseDuration: const Duration(seconds: 4),
+      alignment: Alignment.bottomCenter,
+      icon: const Icon(Icons.error_outline, color: Colors.white),
     );
   }
 

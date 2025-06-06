@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/models/admin_model.dart';
+import 'package:toastification/toastification.dart'; // Tambahkan import
 
 class AdminPengajuanIzinDetailKaryawan extends StatefulWidget {
   final String izinId;
@@ -551,20 +552,24 @@ class _AdminPengajuanIzinDetailKaryawanState
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: Colors.green),
+        toastification.show(
+          context: context,
+          title: Text(message),
+          type: ToastificationType.success,
+          autoCloseDuration: const Duration(seconds: 3),
+          alignment: Alignment.bottomCenter,
         );
 
-        // Kembali ke halaman IzinKaryawanPage
-        Navigator.of(context).pop(true); // Pass true to indicate data changed
+        Navigator.of(context).pop(true);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menyetujui: $e'),
-            backgroundColor: Colors.red,
-          ),
+        toastification.show(
+          context: context,
+          title: Text('Gagal menyetujui: $e'),
+          type: ToastificationType.error,
+          autoCloseDuration: const Duration(seconds: 3),
+          alignment: Alignment.bottomCenter,
         );
       }
     } finally {
@@ -588,20 +593,24 @@ class _AdminPengajuanIzinDetailKaryawanState
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: Colors.orange),
+        toastification.show(
+          context: context,
+          title: Text(message),
+          type: ToastificationType.warning,
+          autoCloseDuration: const Duration(seconds: 3),
+          alignment: Alignment.bottomCenter,
         );
 
-        // Kembali ke halaman IzinKaryawanPage
-        Navigator.of(context).pop(true); // Pass true to indicate data changed
+        Navigator.of(context).pop(true);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menolak: $e'),
-            backgroundColor: Colors.red,
-          ),
+        toastification.show(
+          context: context,
+          title: Text('Gagal menolak: $e'),
+          type: ToastificationType.error,
+          autoCloseDuration: const Duration(seconds: 3),
+          alignment: Alignment.bottomCenter,
         );
       }
     } finally {

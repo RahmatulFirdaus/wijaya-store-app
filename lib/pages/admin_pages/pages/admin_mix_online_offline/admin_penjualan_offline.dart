@@ -3,6 +3,7 @@ import 'package:frontend/models/karyawan_model.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:toastification/toastification.dart'; // Add this import
 
 class PenjualanOfflinePage extends StatefulWidget {
   const PenjualanOfflinePage({super.key});
@@ -52,22 +53,13 @@ class _PenjualanOfflinePageState extends State<PenjualanOfflinePage>
         isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(child: Text('Error loading data: $e')),
-              ],
-            ),
-            backgroundColor: Colors.red.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            margin: const EdgeInsets.all(16),
-          ),
+        toastification.show(
+          context: context,
+          title: Text('Error loading data: $e'),
+          type: ToastificationType.error,
+          autoCloseDuration: const Duration(seconds: 4),
+          alignment: Alignment.bottomCenter,
+          icon: const Icon(Icons.error_outline, color: Colors.white),
         );
       }
     }

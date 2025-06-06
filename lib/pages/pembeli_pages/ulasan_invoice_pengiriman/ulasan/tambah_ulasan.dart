@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/models/pembeli_model.dart';
+import 'package:toastification/toastification.dart';
 
 class TambahUlasan extends StatefulWidget {
   final String idProduk;
@@ -28,21 +29,25 @@ class _TambahUlasanState extends State<TambahUlasan> {
 
   Future<void> _kirimUlasan() async {
     if (selectedRating == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Silakan pilih rating terlebih dahulu'),
-          backgroundColor: Colors.red,
-        ),
+      toastification.show(
+        context: context,
+        title: const Text('Silakan pilih rating terlebih dahulu'),
+        type: ToastificationType.error,
+        autoCloseDuration: const Duration(seconds: 3),
+        alignment: Alignment.bottomCenter,
+        icon: const Icon(Icons.error_outline, color: Colors.white),
       );
       return;
     }
 
     if (_komentarController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Silakan masukkan komentar'),
-          backgroundColor: Colors.red,
-        ),
+      toastification.show(
+        context: context,
+        title: const Text('Silakan masukkan komentar'),
+        type: ToastificationType.error,
+        autoCloseDuration: const Duration(seconds: 3),
+        alignment: Alignment.bottomCenter,
+        icon: const Icon(Icons.error_outline, color: Colors.white),
       );
       return;
     }
@@ -60,18 +65,25 @@ class _TambahUlasanState extends State<TambahUlasan> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result.pesan), backgroundColor: Colors.green),
+        toastification.show(
+          context: context,
+          title: Text(result.pesan),
+          type: ToastificationType.success,
+          autoCloseDuration: const Duration(seconds: 3),
+          alignment: Alignment.bottomCenter,
+          icon: const Icon(Icons.check_circle, color: Colors.white),
         );
         Navigator.pop(context, true); // Return true to indicate success
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: Colors.red,
-          ),
+        toastification.show(
+          context: context,
+          title: Text(e.toString().replaceAll('Exception: ', '')),
+          type: ToastificationType.error,
+          autoCloseDuration: const Duration(seconds: 4),
+          alignment: Alignment.bottomCenter,
+          icon: const Icon(Icons.error_outline, color: Colors.white),
         );
       }
     } finally {

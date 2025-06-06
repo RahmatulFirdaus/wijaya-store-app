@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/models/admin_model.dart';
+import 'package:toastification/toastification.dart';
 
 class AdminTambahAkun extends StatefulWidget {
   const AdminTambahAkun({super.key});
@@ -48,16 +49,15 @@ class _AdminTambahAkunState extends State<AdminTambahAkun> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result),
-            backgroundColor:
-                result.contains('Gagal') ? Colors.red : Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
+        toastification.show(
+          context: context,
+          title: Text(result),
+          type:
+              result.contains('Gagal')
+                  ? ToastificationType.error
+                  : ToastificationType.success,
+          autoCloseDuration: const Duration(seconds: 3),
+          alignment: Alignment.bottomCenter,
         );
 
         if (!result.contains('Gagal')) {

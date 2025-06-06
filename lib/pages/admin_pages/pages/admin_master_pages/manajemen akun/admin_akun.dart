@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/models/admin_model.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_master_pages/manajemen%20akun/admin_edit_akun.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_master_pages/manajemen%20akun/admin_tambah_akun.dart';
+import 'package:toastification/toastification.dart';
 
 class AkunPage extends StatefulWidget {
   const AkunPage({super.key});
@@ -121,7 +122,7 @@ class _AkunPageState extends State<AkunPage> {
       if (!mounted) return;
 
       if (response.statusCode == 200) {
-        _showSuccessSnackBar('Akun berhasil dihapus');
+        _showSuccessToast('Akun berhasil dihapus');
         // Refresh data setelah berhasil hapus
         await _loadDataAkun();
       } else {
@@ -135,7 +136,7 @@ class _AkunPageState extends State<AkunPage> {
           // Jika gagal parse body, gunakan status code
           errorMsg += ' (Status: ${response.statusCode})';
         }
-        _showErrorSnackBar(errorMsg);
+        _showErrorToast(errorMsg);
       }
     } catch (error) {
       // Close loading dialog if still open
@@ -155,48 +156,34 @@ class _AkunPageState extends State<AkunPage> {
         } else {
           errorMessage = 'Kesalahan: ${error.toString()}';
         }
-        _showErrorSnackBar(errorMessage);
+        _showErrorToast(errorMessage);
       }
     }
   }
 
-  void _showSuccessSnackBar(String message) {
+  void _showSuccessToast(String message) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: Colors.green[600],
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        duration: const Duration(seconds: 3),
-      ),
+    toastification.show(
+      context: context,
+      title: Text(message),
+      icon: const Icon(Icons.check_circle, color: Colors.white),
+      type: ToastificationType.success,
+      autoCloseDuration: const Duration(seconds: 3),
+      alignment: Alignment.bottomCenter,
     );
   }
 
-  void _showErrorSnackBar(String message) {
+  void _showErrorToast(String message) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: Colors.red[600],
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        duration: const Duration(seconds: 4),
-      ),
+    toastification.show(
+      context: context,
+      title: Text(message),
+      icon: const Icon(Icons.error_outline, color: Colors.white),
+      type: ToastificationType.error,
+      autoCloseDuration: const Duration(seconds: 4),
+      alignment: Alignment.bottomCenter,
     );
   }
 
