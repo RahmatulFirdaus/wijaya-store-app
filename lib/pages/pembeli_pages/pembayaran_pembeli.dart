@@ -247,18 +247,16 @@ class _PembayaranPembeliState extends State<PembayaranPembeli>
     });
 
     try {
-      // Untuk multiple images, Anda mungkin perlu memodifikasi API call
-      // Saat ini menggunakan gambar pertama sebagai contoh
+      // Ubah semua bukti transfer ke dalam bentuk list path
+      final buktiPaths = _buktiTransferList.map((file) => file.path).toList();
+
       final result = await TambahPembayaran.addPembayaran(
         id_metode_pembayaran: _selectedMetodePembayaran!.id,
         total_harga: widget.totalHarga.toString(),
         nama_pengirim: _namaPengirimController.text.trim(),
         bank_pengirim: _bankPengirimController.text.trim(),
         alamat_pengiriman: _alamatPengirimanController.text.trim(),
-        bukti_transfer_path:
-            _buktiTransferList
-                .first
-                .path, // Perlu dimodifikasi untuk multiple files
+        bukti_transfer_paths: buktiPaths, // Kirim semua path
       );
 
       _showToast(result ?? 'Pembayaran berhasil ditambahkan', isError: false);

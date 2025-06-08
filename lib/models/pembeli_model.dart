@@ -655,9 +655,7 @@ class GetDataMetodePembayaran {
             )
             .toList();
       } else {
-        throw Exception(
-          'Failed to load payment methods, status code: ${response.statusCode}',
-        );
+        return [];
       }
     } catch (e) {
       throw Exception('Failed to load payment methods: $e');
@@ -673,7 +671,7 @@ class TambahPembayaran {
     required String nama_pengirim,
     required String bank_pengirim,
     required String alamat_pengiriman,
-    required String bukti_transfer_path, // path file gambar
+    required List<String> bukti_transfer_paths, // ubah jadi list
   }) async {
     const storage = FlutterSecureStorage();
     var token = await storage.read(key: 'token');
@@ -684,34 +682,32 @@ class TambahPembayaran {
 
     var uri = Uri.parse('http://192.168.1.96:3000/api/pembayaran/upload');
     var request = http.MultipartRequest('POST', uri);
-
-    // Tambahkan Authorization header
     request.headers['Authorization'] = 'Bearer $token';
 
-    // Tambahkan field teks
     request.fields['id_metode_pembayaran'] = id_metode_pembayaran;
     request.fields['total_harga'] = total_harga;
     request.fields['nama_pengirim'] = nama_pengirim;
     request.fields['bank_pengirim'] = bank_pengirim;
     request.fields['alamat_pengiriman'] = alamat_pengiriman;
 
-    // Tentukan ekstensi dan contentType
-    String ext = bukti_transfer_path.split('.').last.toLowerCase();
-    String mimeType =
-        (ext == 'png')
-            ? 'png'
-            : (ext == 'jpg' || ext == 'jpeg')
-            ? 'jpeg'
-            : 'jpeg'; // fallback
+    // Loop untuk menambahkan banyak gambar
+    for (String path in bukti_transfer_paths) {
+      String ext = path.split('.').last.toLowerCase();
+      String mimeType =
+          (ext == 'png')
+              ? 'png'
+              : (ext == 'jpg' || ext == 'jpeg')
+              ? 'jpeg'
+              : 'jpeg';
 
-    // Tambahkan file bukti transfer
-    request.files.add(
-      await http.MultipartFile.fromPath(
-        'bukti_transfer',
-        bukti_transfer_path,
-        contentType: MediaType('image', mimeType),
-      ),
-    );
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'bukti_transfer', // gunakan key yang sama
+          path,
+          contentType: MediaType('image', mimeType),
+        ),
+      );
+    }
 
     try {
       var streamedResponse = await request.send();
@@ -724,7 +720,6 @@ class TambahPembayaran {
       if (response.statusCode == 200 || response.statusCode == 201) {
         return data['message'];
       } else {
-        // Ambil pesan error jika ada
         String errorMessage =
             data['message'] ?? 'Terjadi kesalahan saat mengunggah.';
         return errorMessage;

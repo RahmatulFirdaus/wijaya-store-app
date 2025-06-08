@@ -4,6 +4,59 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 //CLASS GET
 
+class VerifikasiPembayaran {
+  final int idOrderan;
+  final String status;
+  final String? catatanAdmin;
+  final String namaPengirim;
+  final String bankPengirim;
+  final String tanggalTransfer;
+  final List<String> buktiTransfer;
+
+  VerifikasiPembayaran({
+    required this.idOrderan,
+    required this.status,
+    required this.catatanAdmin,
+    required this.namaPengirim,
+    required this.bankPengirim,
+    required this.tanggalTransfer,
+    required this.buktiTransfer,
+  });
+
+  factory VerifikasiPembayaran.fromJson(Map<String, dynamic> json) {
+    return VerifikasiPembayaran(
+      idOrderan: json['id_orderan'],
+      status: json['status'],
+      catatanAdmin: json['catatan_admin'],
+      namaPengirim: json['nama_pengirim'],
+      bankPengirim: json['bank_pengirim'],
+      tanggalTransfer: json['tanggal_transfer'],
+      buktiTransfer: List<String>.from(json['bukti_transfer']),
+    );
+  }
+
+  static Future<List<VerifikasiPembayaran>>
+  getDataVerifikasiPembayaran() async {
+    final url = Uri.parse(
+      'http://192.168.1.96:3000/api/adminTampilVerifikasiPembayaran',
+    );
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final List<dynamic> data = jsonDecode(response.body)['data'];
+        return data.map((item) => VerifikasiPembayaran.fromJson(item)).toList();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      throw Exception('Gagal memuat data verifikasi pembayaran: $e');
+    }
+  }
+}
+
 class DataAkun {
   final int id;
   final String username;
@@ -513,6 +566,34 @@ class TambahAkunService {
   }
 }
 
+class TambahMetodePembayaranService {
+  static Future<String> tambahMetodePembayaran({
+    required String namaMetode,
+    required String deskripsi,
+  }) async {
+    final url = Uri.parse(
+      'http://192.168.1.96:3000/api/adminTambahMetodePembayaran',
+    );
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'nama_metode': namaMetode, 'deskripsi': deskripsi}),
+      );
+
+      final body = jsonDecode(response.body);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return body['pesan'] ?? 'Metode pembayaran berhasil ditambahkan';
+      } else {
+        return body['pesan'] ?? 'Gagal menambahkan metode pembayaran';
+      }
+    } catch (e) {
+      return 'Gagal menghubungi server: $e';
+    }
+  }
+}
+
 //CLASS UPDATE
 class UpdateAkunService {
   static Future<String> updateAkun({
@@ -607,6 +688,70 @@ class UpdatePengirimanService {
   }
 }
 
+class UpdateMetodePembayaranService {
+  static Future<String> updateMetodePembayaran({
+    required String id,
+    required String namaMetode,
+    required String deskripsi,
+  }) async {
+    final url = Uri.parse(
+      'http://192.168.1.96:3000/api/adminUpdateMetodePembayaran/$id',
+    );
+
+    try {
+      final response = await http.patch(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'nama_metode': namaMetode, 'deskripsi': deskripsi}),
+      );
+
+      final body = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return body['pesan'] ?? 'Metode pembayaran berhasil diupdate';
+      } else {
+        return body['pesan'] ?? 'Gagal update metode pembayaran';
+      }
+    } catch (e) {
+      return 'Terjadi kesalahan: $e';
+    }
+  }
+}
+
+class UpdateVerifikasiPembayaranService {
+  static Future<String> updateStatusVerifikasiPembayaran({
+    required String id,
+    required String status,
+    String? catatanAdmin,
+  }) async {
+    final url = Uri.parse(
+      'http://192.168.1.96:3000/api/adminUpdateVerifikasiPembayaran/$id',
+    );
+
+    try {
+      final response = await http.patch(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'status': status,
+          if (catatanAdmin != null) 'catatan_admin': catatanAdmin,
+        }),
+      );
+
+      final body = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return body['pesan'] ??
+            'Status verifikasi pembayaran berhasil diupdate';
+      } else {
+        return body['pesan'] ?? 'Gagal update status verifikasi pembayaran';
+      }
+    } catch (e) {
+      return 'Terjadi kesalahan: $e';
+    }
+  }
+}
+
 //CLASS DELETE
 class HapusAkunService {
   static Future<http.Response> hapusAkun(int id) async {
@@ -616,7 +761,30 @@ class HapusAkunService {
       final response = await http.delete(url);
       return response;
     } catch (e) {
+      // Tetap lempar Exception agar bisa ditangani di _performDelete()
       throw Exception('Gagal menghapus akun: $e');
+    }
+  }
+}
+
+class HapusMetodePembayaranService {
+  static Future<String> hapusMetodePembayaran(String id) async {
+    final url = Uri.parse(
+      'http://192.168.1.96:3000/api/adminDeleteMetodePembayaran/$id',
+    );
+
+    try {
+      final response = await http.delete(url);
+
+      final body = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return body['pesan'] ?? 'Metode pembayaran berhasil dihapus';
+      } else {
+        return body['pesan'] ?? 'Gagal menghapus metode pembayaran';
+      }
+    } catch (e) {
+      return 'Terjadi kesalahan: $e';
     }
   }
 }
