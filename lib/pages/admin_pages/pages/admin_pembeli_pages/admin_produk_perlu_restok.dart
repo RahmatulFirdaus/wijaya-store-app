@@ -19,7 +19,9 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
   bool hasError = false;
   String errorMessage = '';
   late AnimationController _fadeController;
+  late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
@@ -30,11 +32,23 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
 
   void _setupAnimations() {
     _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+    _slideController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
+
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeOutCubic),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
     );
   }
 
@@ -53,6 +67,7 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
       });
 
       _fadeController.forward();
+      _slideController.forward();
     } catch (e) {
       setState(() {
         hasError = true;
@@ -184,91 +199,163 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
       await Printing.layoutPdf(
         onLayout: (PdfPageFormat format) async => pdf.save(),
       );
+
+      if (mounted) {
+        _showSuccessToast('PDF berhasil diekspor');
+      }
     } catch (e) {
       if (mounted) {
-        toastification.show(
-          context: context,
-          title: Text('Gagal mengekspor PDF: $e'),
-          type: ToastificationType.error,
-          autoCloseDuration: const Duration(seconds: 4),
-          alignment: Alignment.bottomCenter,
-          icon: const Icon(Icons.error_outline, color: Colors.white),
-        );
+        _showErrorToast('Gagal mengekspor PDF: $e');
       }
     }
+  }
+
+  void _showSuccessToast(String message) {
+    toastification.show(
+      context: context,
+      title: Text(message),
+      type: ToastificationType.success,
+      autoCloseDuration: const Duration(seconds: 3),
+      alignment: Alignment.topCenter,
+      icon: const Icon(Icons.check_circle, color: Colors.white),
+    );
+  }
+
+  void _showErrorToast(String message) {
+    toastification.show(
+      context: context,
+      title: Text(message),
+      type: ToastificationType.error,
+      autoCloseDuration: const Duration(seconds: 4),
+      alignment: Alignment.topCenter,
+      icon: const Icon(Icons.error_outline, color: Colors.white),
+    );
   }
 
   @override
   void dispose() {
     _fadeController.dispose();
+    _slideController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: _buildAppBar(),
-      body: _buildBody(),
+      backgroundColor: const Color(0xFFFAFAFA),
+      body: CustomScrollView(
+        slivers: [
+          _buildSliverAppBar(),
+          SliverToBoxAdapter(child: _buildBody()),
+        ],
+      ),
       floatingActionButton:
           produkList.isNotEmpty ? _buildFloatingActionButton() : null,
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
+  Widget _buildSliverAppBar() {
+    return SliverAppBar(
+      expandedHeight: 120,
+      floating: false,
+      pinned: true,
+      elevation: 0,
       backgroundColor: Colors.black,
-      elevation: 2,
-      shadowColor: Colors.grey.withOpacity(0.3),
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-        onPressed: () => Navigator.pop(context),
+      foregroundColor: Colors.white,
+      leading: Container(
+        margin: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
-      title: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.inventory_2_outlined,
-              color: Colors.white,
-              size: 20,
+      flexibleSpace: FlexibleSpaceBar(
+        title: const Text(
+          'PRODUK RESTOK',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.5,
+          ),
+        ),
+        background: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Colors.black, Color(0xFF2C2C2C)],
             ),
           ),
-          const SizedBox(width: 12),
-          const Text(
-            'PERLU RESTOK',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1.2,
+          child: Stack(
+            children: [
+              Positioned(
+                right: -50,
+                top: -50,
+                child: Container(
+                  width: 150,
+                  height: 150,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+              Positioned(
+                left: -30,
+                bottom: -30,
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.03),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        if (produkList.isNotEmpty) ...[
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.picture_as_pdf, size: 20),
+              ),
+              onPressed: _exportToPdf,
+              tooltip: 'Export PDF',
             ),
           ),
         ],
-      ),
-      actions: [
-        if (produkList.isNotEmpty)
-          IconButton(
-            icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
-            onPressed: _exportToPdf,
-            tooltip: 'Export PDF',
-          ),
         Container(
-          margin: const EdgeInsets.only(right: 16),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          margin: const EdgeInsets.only(right: 16, top: 12, bottom: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.3)),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Text(
             '${produkList.length}',
             style: const TextStyle(
-              color: Colors.white,
+              color: Colors.black,
               fontWeight: FontWeight.bold,
               fontSize: 14,
             ),
@@ -293,152 +380,139 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
 
     return FadeTransition(
       opacity: _fadeAnimation,
-      child: Column(
-        children: [_buildHeader(), Expanded(child: _buildProductList())],
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: Column(
+          children: [
+            _buildStatsSection(),
+            _buildWarningHeader(),
+            _buildProductList(),
+            const SizedBox(height: 100), // Space for FAB
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildStatsSection() {
+    return Container(
+      margin: const EdgeInsets.all(20),
+      child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.withOpacity(0.3)),
-            ),
-            child: const CircularProgressIndicator(
-              color: Colors.black,
-              strokeWidth: 2,
+          Expanded(
+            child: _buildStatCard(
+              'Total Produk',
+              '${produkList.length}',
+              Icons.inventory_2_rounded,
+              Colors.black,
             ),
           ),
-          const SizedBox(height: 24),
-          const Text(
-            'Memuat data produk...',
-            style: TextStyle(color: Colors.black54, fontSize: 16),
+          const SizedBox(width: 16),
+          Expanded(
+            child: _buildStatCard(
+              'Perlu Restok',
+              '${produkList.where((p) => p.stok < 5).length}',
+              Icons.warning_rounded,
+              const Color(0xFFE53E3E),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildErrorState() {
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.all(24),
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.grey.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.withOpacity(0.3)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, color: Colors.black54, size: 48),
-            const SizedBox(height: 16),
-            const Text(
-              'Gagal Memuat Data',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              errorMessage,
-              style: const TextStyle(color: Colors.black54, fontSize: 14),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _loadData,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text('Coba Lagi'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.all(24),
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          color: Colors.grey.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.withOpacity(0.2)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.check_circle_outline,
-                color: Colors.black54,
-                size: 48,
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Semua Produk Tersedia',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Tidak ada produk yang perlu direstok saat ini',
-              style: TextStyle(color: Colors.black54, fontSize: 14),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withOpacity(0.3)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWarningHeader() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFE53E3E).withOpacity(0.1),
+            const Color(0xFFFF6B6B).withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFE53E3E).withOpacity(0.2),
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
-            decoration: const BoxDecoration(
-              color: Colors.black,
-              shape: BoxShape.circle,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE53E3E),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFE53E3E).withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: const Icon(Icons.warning, color: Colors.white, size: 20),
+            child: const Icon(
+              Icons.priority_high_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -446,14 +520,19 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
                 const Text(
                   'Peringatan Stok Rendah',
                   style: TextStyle(
-                    color: Colors.black,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    color: Colors.black,
                   ),
                 ),
+                const SizedBox(height: 4),
                 Text(
-                  '${produkList.length} produk memerlukan restok segera',
-                  style: const TextStyle(color: Colors.black54, fontSize: 14),
+                  'Produk berikut memerlukan restok segera untuk menghindari kehabisan stok',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
@@ -464,53 +543,78 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
   }
 
   Widget _buildProductList() {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: produkList.length,
-      itemBuilder: (context, index) {
-        final produk = produkList[index];
-        return _buildProductCard(produk, index);
-      },
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Daftar Produk (${produkList.length})',
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...produkList.asMap().entries.map((entry) {
+            final index = entry.key;
+            final produk = entry.value;
+            return AnimatedContainer(
+              duration: Duration(milliseconds: 200 + (index * 50)),
+              curve: Curves.easeOutCubic,
+              child: _buildProductCard(produk, index),
+            );
+          }).toList(),
+        ],
+      ),
     );
   }
 
   Widget _buildProductCard(ProdukPerluRestok produk, int index) {
     final imageUrl =
         'http://192.168.1.96:3000/uploads/${produk.linkGambarVarian}';
+    final isLowStock = produk.stok < 3;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withOpacity(0.3)),
+        borderRadius: BorderRadius.circular(20),
+        border:
+            isLowStock
+                ? Border.all(
+                  color: const Color(0xFFE53E3E).withOpacity(0.3),
+                  width: 2,
+                )
+                : null,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: IntrinsicHeight(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Product Image
             Container(
-              width: 80,
+              width: 100,
+              height: 120,
               decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.1),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  bottomLeft: Radius.circular(12),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Colors.grey[100]!, Colors.grey[50]!],
                 ),
               ),
               child: ClipRRect(
                 borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  bottomLeft: Radius.circular(12),
+                  topLeft: Radius.circular(20),
+                  bottomLeft: Radius.circular(20),
                 ),
                 child: Image.network(
                   imageUrl,
@@ -518,12 +622,14 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
                       decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.2),
+                        gradient: LinearGradient(
+                          colors: [Colors.grey[100]!, Colors.grey[50]!],
+                        ),
                       ),
                       child: const Icon(
-                        Icons.image_not_supported,
-                        color: Colors.black38,
-                        size: 32,
+                        Icons.image_not_supported_rounded,
+                        color: Colors.grey,
+                        size: 40,
                       ),
                     );
                   },
@@ -531,12 +637,14 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
                     if (loadingProgress == null) return child;
                     return Container(
                       decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.2),
+                        gradient: LinearGradient(
+                          colors: [Colors.grey[100]!, Colors.grey[50]!],
+                        ),
                       ),
                       child: const Center(
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.black38,
+                          color: Colors.grey,
                         ),
                       ),
                     );
@@ -547,40 +655,86 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
             // Product Details
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      produk.namaProduk,
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            produk.namaProduk,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                              height: 1.3,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isLowStock)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE53E3E),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              'URGENT',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        _buildDetailChip(
-                          'Ukuran ${produk.ukuran}',
-                          Colors.black54,
-                          Icons.straighten,
+                        _buildModernChip(
+                          'Size ${produk.ukuran}',
+                          Icons.straighten_rounded,
+                          Colors.blue[600]!,
                         ),
-                        _buildDetailChip(
+                        _buildModernChip(
                           produk.warna,
-                          Colors.black54,
-                          Icons.color_lens_outlined,
+                          Icons.palette_rounded,
+                          Colors.purple[600]!,
                         ),
-                        _buildDetailChip(
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.inventory_2_rounded,
+                          size: 18,
+                          color:
+                              isLowStock
+                                  ? const Color(0xFFE53E3E)
+                                  : Colors.grey[600],
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
                           'Stok: ${produk.stok}',
-                          produk.stok < 3 ? Colors.black : Colors.black54,
-                          Icons.inventory_2_outlined,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color:
+                                isLowStock
+                                    ? const Color(0xFFE53E3E)
+                                    : Colors.grey[700],
+                          ),
                         ),
                       ],
                     ),
@@ -594,28 +748,214 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
     );
   }
 
-  Widget _buildDetailChip(String label, Color color, IconData icon) {
+  Widget _buildModernChip(String label, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 14),
-          const SizedBox(width: 4),
+          Icon(icon, color: color, size: 16),
+          const SizedBox(width: 6),
           Text(
             label,
             style: TextStyle(
               color: color,
               fontSize: 12,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    width: 60,
+                    height: 60,
+                    child: CircularProgressIndicator(
+                      color: Colors.black,
+                      strokeWidth: 3,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Memuat data produk...',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      child: Center(
+        child: Container(
+          margin: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE53E3E).withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.error_outline_rounded,
+                  color: Color(0xFFE53E3E),
+                  size: 48,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Gagal Memuat Data',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                errorMessage,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton(
+                onPressed: _loadData,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'Coba Lagi',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      child: Center(
+        child: Container(
+          margin: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(40),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_circle_outline_rounded,
+                  color: Colors.green,
+                  size: 64,
+                ),
+              ),
+              const SizedBox(height: 32),
+              const Text(
+                'Semua Produk Tersedia',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Tidak ada produk yang perlu direstok saat ini.\nSemua stok dalam kondisi aman.',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -628,14 +968,17 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
           heroTag: "pdf",
           onPressed: _exportToPdf,
           backgroundColor: Colors.black,
-          child: const Icon(Icons.picture_as_pdf, color: Colors.white),
+          elevation: 8,
+          child: const Icon(Icons.picture_as_pdf_rounded, color: Colors.white),
         ),
         const SizedBox(height: 16),
         FloatingActionButton(
           heroTag: "refresh",
           onPressed: _loadData,
-          backgroundColor: Colors.black,
-          child: const Icon(Icons.refresh, color: Colors.white),
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+          elevation: 8,
+          child: const Icon(Icons.refresh_rounded),
         ),
       ],
     );

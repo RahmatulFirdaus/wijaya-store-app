@@ -3,6 +3,123 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 //CLASS GET
+class DataProdukEco {
+  final int id;
+  final String nama;
+  final String status;
+  final String hargaAsli;
+
+  DataProdukEco({
+    required this.id,
+    required this.nama,
+    required this.status,
+    required this.hargaAsli,
+  });
+
+  factory DataProdukEco.fromJson(Map<String, dynamic> json) {
+    return DataProdukEco(
+      id: json['id'],
+      nama: json['nama'],
+      status: json['status'],
+      hargaAsli: json['harga_asli']?.toString() ?? '-',
+    );
+  }
+
+  static Future<List<DataProdukEco>> fetchDataProdukEco() async {
+    final url = Uri.parse('http://192.168.1.96:3000/api/adminTampilProdukEco');
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        final List dataList = body['data'];
+        return dataList.map((e) => DataProdukEco.fromJson(e)).toList();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      throw Exception('Gagal mengambil data: $e');
+    }
+  }
+}
+
+class ProdukTransaksi {
+  final int jumlahOrder;
+  final String namaProduk;
+  final String hargaSatuan;
+  final String warna;
+  final int ukuran;
+
+  ProdukTransaksi({
+    required this.jumlahOrder,
+    required this.namaProduk,
+    required this.hargaSatuan,
+    required this.warna,
+    required this.ukuran,
+  });
+
+  factory ProdukTransaksi.fromJson(Map<String, dynamic> json) {
+    return ProdukTransaksi(
+      jumlahOrder: json['jumlah_order'],
+      namaProduk: json['nama_produk'],
+      hargaSatuan: json['harga_satuan'],
+      warna: json['warna'],
+      ukuran: json['ukuran'],
+    );
+  }
+}
+
+class DataTransaksiOnline {
+  final int idOrderan;
+  final String namaPengguna;
+  final String status;
+  final String tanggalOrder;
+  final String totalHarga;
+  final List<ProdukTransaksi> produk;
+
+  DataTransaksiOnline({
+    required this.idOrderan,
+    required this.namaPengguna,
+    required this.status,
+    required this.tanggalOrder,
+    required this.totalHarga,
+    required this.produk,
+  });
+
+  factory DataTransaksiOnline.fromJson(Map<String, dynamic> json) {
+    var list = json['produk'] as List;
+    List<ProdukTransaksi> produkList =
+        list.map((e) => ProdukTransaksi.fromJson(e)).toList();
+
+    return DataTransaksiOnline(
+      idOrderan: json['id_orderan'],
+      namaPengguna: json['nama_pengguna'],
+      status: json['status'],
+      tanggalOrder: json['tanggal_order'],
+      totalHarga: json['total_harga'],
+      produk: produkList,
+    );
+  }
+
+  static Future<List<DataTransaksiOnline>> fetchDataTransaksiOnline() async {
+    final url = Uri.parse(
+      'http://192.168.1.96:3000/api/adminTampilHasilTransaksiOnline',
+    );
+
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        final List dataList = body['data'];
+        return dataList.map((e) => DataTransaksiOnline.fromJson(e)).toList();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      throw Exception('Kesalahan saat mengambil data transaksi online: $e');
+    }
+  }
+}
 
 class VerifikasiPembayaran {
   final int idOrderan;
@@ -748,6 +865,30 @@ class UpdateVerifikasiPembayaranService {
       }
     } catch (e) {
       return 'Terjadi kesalahan: $e';
+    }
+  }
+}
+
+class UpdateHargaProdukEcoService {
+  static Future<String> updateHargaProdukEco({
+    required String idProduk,
+    required String hargaAsli,
+  }) async {
+    final url = Uri.parse(
+      'http://192.168.1.96:3000/api/adminUpdateHargaProdukEco/$idProduk',
+    );
+
+    try {
+      final response = await http.patch(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'harga_asli': hargaAsli}),
+      );
+
+      final body = jsonDecode(response.body);
+      return body['pesan'] ?? 'Harga produk berhasil diperbarui';
+    } catch (e) {
+      return 'Gagal update harga produk: $e';
     }
   }
 }
