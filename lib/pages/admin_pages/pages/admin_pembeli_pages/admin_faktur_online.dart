@@ -408,6 +408,352 @@ class _FakturOnlinePageState extends State<FakturOnlinePage>
     );
   }
 
+  Future<void> _generateAllFakturPDF(List<Faktur> allFaktur) async {
+    final pdf = pw.Document();
+
+    // Calculate grand total
+    double grandTotal = 0;
+    for (var faktur in allFaktur) {
+      double fakturTotal = faktur.items.fold(0, (sum, item) {
+        double harga = double.tryParse(item.harga.toString()) ?? 0;
+        int quantity = int.tryParse(item.jumlahOrder.toString()) ?? 0;
+        return sum + (harga * quantity);
+      });
+      grandTotal += fakturTotal;
+    }
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(20),
+        build: (pw.Context context) {
+          return [
+            // Header
+            pw.Container(
+              padding: const pw.EdgeInsets.all(20),
+              decoration: pw.BoxDecoration(
+                color: PdfColors.blue700,
+                borderRadius: pw.BorderRadius.circular(10),
+              ),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'LAPORAN FAKTUR ONLINE',
+                        style: pw.TextStyle(
+                          color: PdfColors.white,
+                          fontSize: 24,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                      pw.SizedBox(height: 5),
+                      pw.Text(
+                        'Total: ${allFaktur.length} Faktur',
+                        style: pw.TextStyle(
+                          color: PdfColors.white,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.Text(
+                    DateTime.now().toString().split(' ')[0],
+                    style: pw.TextStyle(color: PdfColors.white, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 20),
+
+            // Detailed Items Table
+            ...allFaktur.map((faktur) {
+              double fakturTotal = faktur.items.fold(0, (sum, item) {
+                double harga = double.tryParse(item.harga.toString()) ?? 0;
+                int quantity = int.tryParse(item.jumlahOrder.toString()) ?? 0;
+                return sum + (harga * quantity);
+              });
+
+              return pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  // Faktur Header
+                  pw.Container(
+                    margin: const pw.EdgeInsets.only(bottom: 10),
+                    padding: const pw.EdgeInsets.all(12),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.blue100,
+                      borderRadius: pw.BorderRadius.circular(8),
+                    ),
+                    child: pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(
+                              'Faktur #${faktur.nomorFaktur}',
+                              style: pw.TextStyle(
+                                fontSize: 12,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.blue800,
+                              ),
+                            ),
+                            pw.SizedBox(height: 2),
+                            pw.Text(
+                              'Pelanggan: ${faktur.namaPengguna}',
+                              style: const pw.TextStyle(
+                                fontSize: 10,
+                                color: PdfColors.blue700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.end,
+                          children: [
+                            pw.Text(
+                              'Tanggal: ${faktur.tanggalFaktur}',
+                              style: const pw.TextStyle(
+                                fontSize: 10,
+                                color: PdfColors.blue700,
+                              ),
+                            ),
+                            pw.SizedBox(height: 2),
+                            pw.Text(
+                              'Total: Rp ${_formatCurrency(fakturTotal)}',
+                              style: pw.TextStyle(
+                                fontSize: 10,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.blue800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Items Table for this Faktur
+                  pw.Table(
+                    border: pw.TableBorder.all(
+                      color: PdfColors.grey400,
+                      width: 0.5,
+                    ),
+                    columnWidths: {
+                      0: const pw.FlexColumnWidth(3), // Nama Produk
+                      1: const pw.FlexColumnWidth(1.5), // Warna
+                      2: const pw.FlexColumnWidth(1), // Ukuran
+                      3: const pw.FlexColumnWidth(1.5), // Harga Satuan
+                      4: const pw.FlexColumnWidth(1), // Jumlah
+                      5: const pw.FlexColumnWidth(1.5), // Total
+                    },
+                    children: [
+                      // Items Header Row
+                      pw.TableRow(
+                        decoration: pw.BoxDecoration(color: PdfColors.grey300),
+                        children: [
+                          pw.Container(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text(
+                              'Nama Produk',
+                              style: pw.TextStyle(
+                                fontWeight: pw.FontWeight.bold,
+                                fontSize: 8,
+                              ),
+                            ),
+                          ),
+                          pw.Container(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text(
+                              'Warna',
+                              style: pw.TextStyle(
+                                fontWeight: pw.FontWeight.bold,
+                                fontSize: 8,
+                              ),
+                              textAlign: pw.TextAlign.center,
+                            ),
+                          ),
+                          pw.Container(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text(
+                              'Ukuran',
+                              style: pw.TextStyle(
+                                fontWeight: pw.FontWeight.bold,
+                                fontSize: 8,
+                              ),
+                              textAlign: pw.TextAlign.center,
+                            ),
+                          ),
+                          pw.Container(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text(
+                              'Harga Satuan',
+                              style: pw.TextStyle(
+                                fontWeight: pw.FontWeight.bold,
+                                fontSize: 8,
+                              ),
+                              textAlign: pw.TextAlign.right,
+                            ),
+                          ),
+                          pw.Container(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text(
+                              'Qty',
+                              style: pw.TextStyle(
+                                fontWeight: pw.FontWeight.bold,
+                                fontSize: 8,
+                              ),
+                              textAlign: pw.TextAlign.center,
+                            ),
+                          ),
+                          pw.Container(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text(
+                              'Total',
+                              style: pw.TextStyle(
+                                fontWeight: pw.FontWeight.bold,
+                                fontSize: 8,
+                              ),
+                              textAlign: pw.TextAlign.right,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // Items Data Rows
+                      ...faktur.items.map((item) {
+                        double harga =
+                            double.tryParse(item.harga.toString()) ?? 0;
+                        int quantity =
+                            int.tryParse(item.jumlahOrder.toString()) ?? 0;
+                        double itemTotal = harga * quantity;
+
+                        return pw.TableRow(
+                          children: [
+                            pw.Container(
+                              padding: const pw.EdgeInsets.all(6),
+                              child: pw.Text(
+                                item.namaBarang,
+                                style: const pw.TextStyle(fontSize: 8),
+                                maxLines: 3,
+                              ),
+                            ),
+                            pw.Container(
+                              padding: const pw.EdgeInsets.all(6),
+                              child: pw.Text(
+                                item.warna,
+                                style: const pw.TextStyle(fontSize: 8),
+                                textAlign: pw.TextAlign.center,
+                                maxLines: 2,
+                              ),
+                            ),
+                            pw.Container(
+                              padding: const pw.EdgeInsets.all(6),
+                              child: pw.Text(
+                                item.ukuran,
+                                style: const pw.TextStyle(fontSize: 8),
+                                textAlign: pw.TextAlign.center,
+                              ),
+                            ),
+                            pw.Container(
+                              padding: const pw.EdgeInsets.all(6),
+                              child: pw.Text(
+                                'Rp ${_formatCurrency(harga)}',
+                                style: const pw.TextStyle(fontSize: 8),
+                                textAlign: pw.TextAlign.right,
+                              ),
+                            ),
+                            pw.Container(
+                              padding: const pw.EdgeInsets.all(6),
+                              child: pw.Text(
+                                quantity.toString(),
+                                style: pw.TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
+                                textAlign: pw.TextAlign.center,
+                              ),
+                            ),
+                            pw.Container(
+                              padding: const pw.EdgeInsets.all(6),
+                              child: pw.Text(
+                                'Rp ${_formatCurrency(itemTotal)}',
+                                style: pw.TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
+                                textAlign: pw.TextAlign.right,
+                              ),
+                            ),
+                          ],
+                        );
+                      }).toList(),
+                    ],
+                  ),
+
+                  pw.SizedBox(height: 15),
+                ],
+              );
+            }).toList(),
+
+            pw.SizedBox(height: 20),
+
+            // Grand Total
+            pw.Container(
+              padding: const pw.EdgeInsets.all(15),
+              decoration: pw.BoxDecoration(
+                color: PdfColors.grey800,
+                borderRadius: pw.BorderRadius.circular(8),
+              ),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'TOTAL KESELURUHAN',
+                    style: pw.TextStyle(
+                      color: PdfColors.white,
+                      fontSize: 14,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.Text(
+                    'Rp ${_formatCurrency(grandTotal)}',
+                    style: pw.TextStyle(
+                      color: PdfColors.white,
+                      fontSize: 18,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            pw.SizedBox(height: 30),
+
+            // Footer
+            pw.Center(
+              child: pw.Text(
+                'Laporan digenerate pada ${DateTime.now().toString().split('.')[0]}',
+                style: pw.TextStyle(
+                  fontSize: 10,
+                  fontStyle: pw.FontStyle.italic,
+                  color: PdfColors.grey600,
+                ),
+              ),
+            ),
+          ];
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -445,6 +791,37 @@ class _FakturOnlinePageState extends State<FakturOnlinePage>
           ),
         ),
         actions: [
+          // Tombol Download All PDF - TAMBAHKAN INI
+          IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.download, color: Color(0xFF10B981)),
+            ),
+            onPressed: () {
+              if (_filteredFakturList.isNotEmpty) {
+                _generateAllFakturPDF(_filteredFakturList);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Tidak ada data faktur untuk diunduh'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              }
+            },
+          ),
+          // Tombol Refresh yang sudah ada
           IconButton(
             icon: Container(
               padding: const EdgeInsets.all(8),

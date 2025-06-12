@@ -3,7 +3,6 @@ import 'package:frontend/models/admin_model.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:toastification/toastification.dart';
 import 'dart:io';
-import 'dart:convert';
 
 class TambahProdukPage extends StatefulWidget {
   const TambahProdukPage({super.key});
@@ -154,11 +153,7 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
         }
       }
 
-      // Konversi varian ke Map
-      List<Map<String, dynamic>> varianListMap =
-          _varianList.map((varian) => varian.toJson()).toList();
-
-      // Kirim data ke server
+      // Kirim data ke server dengan method baru
       final result = await PostTambahProduk.kirimProduk(
         namaProduk: _namaProdukController.text,
         deskripsi: _deskripsiController.text,
@@ -167,12 +162,12 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
         hargaModal: _hargaModalController.text,
         kategori: _selectedKategori!,
         gambarList: gambarList,
-        varianList: varianListMap,
+        varianList: _varianList, // Langsung kirim list VarianProduk
       );
 
       if (result.success) {
         _showToast(result.pesan);
-        Navigator.pop(context, true); // Kembali dengan hasil berhasil
+        Navigator.pop(context, true);
       } else {
         _showToast(result.pesan, type: ToastificationType.error);
       }
@@ -381,7 +376,7 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
 
                 return Card(
                   margin: const EdgeInsets.symmetric(vertical: 4),
-                  child: ListTile(
+                  child: ExpansionTile(
                     leading:
                         varian.gambarVarian != null
                             ? ClipRRect(
@@ -394,16 +389,25 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
                               ),
                             )
                             : const Icon(Icons.image_not_supported),
-                    title: Text(
-                      '${varian.warnaVarian} - ${varian.ukuranVarian}',
-                    ),
+                    title: Text('Warna: ${varian.warna}'),
                     subtitle: Text(
-                      'Warna: ${varian.warnaVarian}\nUkuran: ${varian.ukuranVarian}\nStok: ${varian.stokVarian}',
+                      '${varian.ukuranList.length} ukuran tersedia',
                     ),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete, color: Colors.red),
                       onPressed: () => _hapusVarian(index),
                     ),
+                    children:
+                        varian.ukuranList.map((ukuran) {
+                          return ListTile(
+                            contentPadding: const EdgeInsets.only(
+                              left: 72,
+                              right: 16,
+                            ),
+                            title: Text('Ukuran: ${ukuran.ukuran}'),
+                            subtitle: Text('Stok: ${ukuran.stok}'),
+                          );
+                        }).toList(),
                   ),
                 );
               }).toList(),
@@ -447,43 +451,18 @@ class _DialogTambahVarian extends StatefulWidget {
   State<_DialogTambahVarian> createState() => _DialogTambahVarianState();
 }
 
-class _DialogTambahVarianState extends State<_DialogTambahVarian>
-    with SingleTickerProviderStateMixin {
+class _DialogTambahVarianState extends State<_DialogTambahVarian> {
   final _formKey = GlobalKey<FormState>();
   final ImagePicker _picker = ImagePicker();
-  late AnimationController _animationController;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _fadeAnimation;
 
-  final TextEditingController _warnaVarianController = TextEditingController();
-  final TextEditingController _ukuranVarianController = TextEditingController();
-  final TextEditingController _stokVarianController = TextEditingController();
-
+  final TextEditingController _warnaController = TextEditingController();
   File? _gambarVarian;
+  List<UkuranVarian> _ukuranList = [];
   bool _isLoading = false;
 
   @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(begin: 0.7, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.elasticOut),
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-    _animationController.forward();
-  }
-
-  @override
   void dispose() {
-    _animationController.dispose();
-    _warnaVarianController.dispose();
-    _ukuranVarianController.dispose();
-    _stokVarianController.dispose();
+    _warnaController.dispose();
     super.dispose();
   }
 
@@ -502,365 +481,297 @@ class _DialogTambahVarianState extends State<_DialogTambahVarian>
         });
       }
     } catch (e) {
-      toastification.show(
-        context: context,
-        type: ToastificationType.error,
-        style: ToastificationStyle.flatColored,
-        title: Text('Gagal memilih gambar: $e'),
-        alignment: Alignment.topRight,
-        autoCloseDuration: const Duration(seconds: 4),
-      );
+      // Show error toast
     }
   }
 
-  void _simpanVarian() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-      });
+  void _tambahUkuran() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => _DialogTambahUkuran(
+            onTambahUkuran: (ukuranVarian) {
+              setState(() {
+                _ukuranList.add(ukuranVarian);
+              });
+            },
+          ),
+    );
+  }
 
-      // Simulasi delay untuk efek loading
-      await Future.delayed(const Duration(milliseconds: 500));
+  void _hapusUkuran(int index) {
+    setState(() {
+      _ukuranList.removeAt(index);
+    });
+  }
+
+  void _simpanVarian() {
+    if (_formKey.currentState!.validate()) {
+      if (_ukuranList.isEmpty) {
+        // Show error toast: minimal 1 ukuran
+        return;
+      }
 
       final varian = VarianProduk(
-        warnaVarian: _warnaVarianController.text,
-        ukuranVarian: _ukuranVarianController.text,
-        stokVarian: _stokVarianController.text,
+        warna: _warnaController.text,
+        ukuranList: _ukuranList,
         gambarVarian: _gambarVarian,
       );
 
       widget.onTambahVarian(varian);
-
-      if (mounted) {
-        toastification.show(
-          context: context,
-          type: ToastificationType.success,
-          style: ToastificationStyle.flatColored,
-          title: const Text('Varian berhasil ditambahkan'),
-          alignment: Alignment.topRight,
-          autoCloseDuration: const Duration(seconds: 3),
-        );
-        Navigator.pop(context);
-      }
+      Navigator.pop(context);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _animationController,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: _scaleAnimation.value,
-          child: Opacity(
-            opacity: _fadeAnimation.value,
-            child: Dialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              elevation: 16,
-              backgroundColor: Colors.transparent,
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
+    return Dialog(
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                const Text(
+                  'Tambah Varian',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+
+                // Input Warna
+                TextFormField(
+                  controller: _warnaController,
+                  decoration: const InputDecoration(
+                    labelText: 'Warna Varian',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Warna tidak boleh kosong';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Gambar Varian
+                const Text(
+                  'Gambar Varian',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: _pilihGambarVarian,
+                  child: Container(
+                    height: 100,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child:
+                        _gambarVarian != null
+                            ? Image.file(_gambarVarian!, fit: BoxFit.cover)
+                            : const Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.add_photo_alternate),
+                                Text('Pilih Gambar'),
+                              ],
+                            ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Section Ukuran
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Ukuran & Stok',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    ElevatedButton(
+                      onPressed: _tambahUkuran,
+                      child: const Text('Tambah Ukuran'),
                     ),
                   ],
                 ),
-                child: Form(
-                  key: _formKey,
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Header dengan icon dan title
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(
-                                Icons.palette,
-                                color: Colors.blue,
-                                size: 24,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            const Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Tambah Varian',
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Isi detail varian produk',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
+                const SizedBox(height: 8),
 
-                        // Form fields dengan desain modern
-                        _buildTextField(
-                          controller: _warnaVarianController,
-                          label: 'Warna Varian',
-                          icon: Icons.color_lens,
-                          hint: 'Masukkan warna varian',
-                        ),
-                        const SizedBox(height: 16),
-
-                        _buildTextField(
-                          controller: _ukuranVarianController,
-                          label: 'Ukuran Varian',
-                          icon: Icons.straighten,
-                          hint: 'Masukkan ukuran varian',
-                        ),
-                        const SizedBox(height: 16),
-
-                        _buildTextField(
-                          controller: _stokVarianController,
-                          label: 'Stok Varian',
-                          icon: Icons.inventory,
-                          hint: 'Masukkan jumlah stok',
-                          keyboardType: TextInputType.number,
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Section gambar dengan desain modern
-                        const Text(
-                          'Gambar Varian',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        InkWell(
-                          onTap: _pilihGambarVarian,
-                          borderRadius: BorderRadius.circular(16),
-                          child: Container(
-                            height: 160,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: Colors.grey.shade300,
-                                width: 2,
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                              color: Colors.grey.shade50,
-                            ),
-                            child:
-                                _gambarVarian != null
-                                    ? Stack(
-                                      children: [
-                                        ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                            14,
-                                          ),
-                                          child: Image.file(
-                                            _gambarVarian!,
-                                            width: double.infinity,
-                                            height: double.infinity,
-                                            fit: BoxFit.cover,
-                                          ),
-                                        ),
-                                        Positioned(
-                                          top: 8,
-                                          right: 8,
-                                          child: Container(
-                                            padding: const EdgeInsets.all(4),
-                                            decoration: BoxDecoration(
-                                              color: Colors.black54,
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                            ),
-                                            child: const Icon(
-                                              Icons.edit,
-                                              color: Colors.white,
-                                              size: 16,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    )
-                                    : Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(16),
-                                          decoration: BoxDecoration(
-                                            color: Colors.blue.withOpacity(0.1),
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(
-                                            Icons.add_photo_alternate,
-                                            size: 32,
-                                            color: Colors.blue,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 12),
-                                        const Text(
-                                          'Tap untuk pilih gambar',
-                                          style: TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                          ),
-                        ),
-                        const SizedBox(height: 32),
-
-                        // Action buttons dengan desain modern
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed:
-                                    _isLoading
-                                        ? null
-                                        : () => Navigator.pop(context),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                  ),
-                                  side: BorderSide(color: Colors.grey.shade300),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Batal',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: _isLoading ? null : _simpanVarian,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  elevation: 2,
-                                ),
-                                child:
-                                    _isLoading
-                                        ? const SizedBox(
-                                          height: 20,
-                                          width: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                                  Colors.white,
-                                                ),
-                                          ),
-                                        )
-                                        : const Text(
-                                          'Simpan',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                // List Ukuran
+                ..._ukuranList.asMap().entries.map((entry) {
+                  int index = entry.key;
+                  UkuranVarian ukuran = entry.value;
+                  return ListTile(
+                    title: Text('Ukuran: ${ukuran.ukuran}'),
+                    subtitle: Text('Stok: ${ukuran.stok}'),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => _hapusUkuran(index),
                     ),
-                  ),
+                  );
+                }).toList(),
+
+                const SizedBox(height: 24),
+
+                // Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Batal'),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _simpanVarian,
+                        child: const Text('Simpan'),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
+              ],
             ),
           ),
-        );
-      },
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    required String hint,
-    TextInputType? keyboardType,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        prefixIcon: Icon(icon, color: Colors.blue),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.blue, width: 2),
-        ),
-        filled: true,
-        fillColor: Colors.grey.shade50,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 16,
         ),
       ),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return '$label tidak boleh kosong';
-        }
-        if (keyboardType == TextInputType.number) {
-          if (int.tryParse(value) == null) {
-            return 'Masukkan angka yang valid';
-          }
-        }
-        return null;
-      },
     );
   }
+}
+
+class _DialogTambahUkuran extends StatefulWidget {
+  final Function(UkuranVarian) onTambahUkuran;
+
+  const _DialogTambahUkuran({required this.onTambahUkuran});
+
+  @override
+  State<_DialogTambahUkuran> createState() => _DialogTambahUkuranState();
+}
+
+class _DialogTambahUkuranState extends State<_DialogTambahUkuran> {
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _ukuranController = TextEditingController();
+  final TextEditingController _stokController = TextEditingController();
+
+  @override
+  void dispose() {
+    _ukuranController.dispose();
+    _stokController.dispose();
+    super.dispose();
+  }
+
+  void _simpanUkuran() {
+    if (_formKey.currentState!.validate()) {
+      final ukuranVarian = UkuranVarian(
+        ukuran: _ukuranController.text,
+        stok: int.parse(_stokController.text),
+      );
+
+      widget.onTambahUkuran(ukuranVarian);
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Tambah Ukuran'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _ukuranController,
+              decoration: const InputDecoration(
+                labelText: 'Ukuran',
+                border: OutlineInputBorder(),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Ukuran tidak boleh kosong';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _stokController,
+              decoration: const InputDecoration(
+                labelText: 'Stok',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Stok tidak boleh kosong';
+                }
+                if (int.tryParse(value) == null) {
+                  return 'Masukkan angka yang valid';
+                }
+                return null;
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        ElevatedButton(onPressed: _simpanUkuran, child: const Text('Simpan')),
+      ],
+    );
+  }
+}
+
+Widget _buildTextField({
+  required TextEditingController controller,
+  required String label,
+  required IconData icon,
+  required String hint,
+  TextInputType? keyboardType,
+}) {
+  return TextFormField(
+    controller: controller,
+    keyboardType: keyboardType,
+    decoration: InputDecoration(
+      labelText: label,
+      hintText: hint,
+      prefixIcon: Icon(icon, color: Colors.blue),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.blue, width: 2),
+      ),
+      filled: true,
+      fillColor: Colors.grey.shade50,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    ),
+    validator: (value) {
+      if (value == null || value.isEmpty) {
+        return '$label tidak boleh kosong';
+      }
+      if (keyboardType == TextInputType.number) {
+        if (int.tryParse(value) == null) {
+          return 'Masukkan angka yang valid';
+        }
+      }
+      return null;
+    },
+  );
 }

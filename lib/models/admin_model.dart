@@ -1121,15 +1121,15 @@ class PostTambahProduk {
     required String hargaAwal,
     required String hargaModal,
     required String kategori,
-    required List<File> gambarList,
-    required List<Map<String, dynamic>> varianList,
+    required List<File> gambarList, // gambarUtama + gambar varian
+    required List<VarianProduk> varianList,
   }) async {
     final url = Uri.parse('http://192.168.1.96:3000/api/adminTambahProduk');
 
     try {
       final request = http.MultipartRequest('POST', url);
 
-      // Tambahkan field form biasa
+      // Form fields
       request.fields['nama_produk'] = namaProduk;
       request.fields['deskripsi'] = deskripsi;
       request.fields['harga_produk'] = hargaProduk;
@@ -1137,21 +1137,22 @@ class PostTambahProduk {
       request.fields['harga_modal'] = hargaModal;
       request.fields['kategori'] = kategori;
 
-      // Konversi list varian menjadi JSON string
-      request.fields['varian'] = jsonEncode(varianList);
+      // Konversi list varian ke JSON string
+      List<Map<String, dynamic>> varianJsonList =
+          varianList.map((e) => e.toJson()).toList();
+      request.fields['varian'] = jsonEncode(varianJsonList);
 
-      // Tambahkan file gambar (maksimal 10 sesuai limit server)
-      for (var file in gambarList) {
+      // Upload semua gambar
+      for (File file in gambarList) {
         final mimeType = lookupMimeType(file.path) ?? 'image/jpeg';
         final multipartFile = await http.MultipartFile.fromPath(
-          'link_gambar',
+          'link_gambar', // sesuai backend (req.files)
           file.path,
           contentType: MediaType.parse(mimeType),
         );
         request.files.add(multipartFile);
       }
 
-      // Kirim request
       final response = await request.send().timeout(
         const Duration(seconds: 10),
         onTimeout: () {
@@ -1193,8 +1194,6 @@ class PostTambahProduk {
             'Tidak dapat terhubung ke server. Periksa koneksi internet.';
       } else if (e.toString().contains('timeout')) {
         errorMessage = 'Koneksi timeout. Coba lagi nanti.';
-      } else if (e.toString().contains('FormatException')) {
-        errorMessage = 'Format data tidak valid.';
       }
 
       return PostTambahProduk(pesan: errorMessage, success: false);
@@ -1203,28 +1202,113 @@ class PostTambahProduk {
 }
 
 class VarianProduk {
-  String warnaVarian;
-  String ukuranVarian;
-  String stokVarian;
-  File? gambarVarian;
+  final String warna;
+  final List<UkuranVarian> ukuranList;
+  final File? gambarVarian;
 
   VarianProduk({
-    required this.warnaVarian,
-    required this.ukuranVarian,
-    required this.stokVarian,
+    required this.warna,
+    required this.ukuranList,
     this.gambarVarian,
   });
 
   Map<String, dynamic> toJson() {
     return {
-      'warna': warnaVarian,
-      'ukuran': ukuranVarian,
-      'stok': stokVarian,
-      'gambar':
-          gambarVarian != null
-              ? base64Encode(gambarVarian!.readAsBytesSync())
-              : null,
+      'warna': warna,
+      'ukuran': ukuranList.map((e) => e.toJson()).toList(),
     };
+  }
+}
+
+class UkuranVarian {
+  final String ukuran;
+  final int stok;
+
+  UkuranVarian({required this.ukuran, required this.stok});
+
+  Map<String, dynamic> toJson() => {'ukuran': ukuran, 'stok': stok};
+}
+
+//KHUSUS MENAMPILKAN DATA UNTUK UPDATE PRODUK
+class DataVarianProduk {
+  final int id;
+  final int idProduk;
+  final String warna;
+  final int ukuran;
+  final int stok;
+  final String linkGambarVarian;
+
+  DataVarianProduk({
+    required this.id,
+    required this.idProduk,
+    required this.warna,
+    required this.ukuran,
+    required this.stok,
+    required this.linkGambarVarian,
+  });
+
+  factory DataVarianProduk.fromJson(Map<String, dynamic> json) {
+    return DataVarianProduk(
+      id: json['id'],
+      idProduk: json['id_produk'],
+      warna: json['warna'],
+      ukuran: json['ukuran'],
+      stok: json['stok'],
+      linkGambarVarian: json['link_gambar_varian'],
+    );
+  }
+}
+
+class DataDetailProduk {
+  final int id;
+  final String nama;
+  final String deskripsi;
+  final String harga;
+  final String linkGambar;
+  final String kategori;
+  final List varian;
+
+  DataDetailProduk({
+    required this.id,
+    required this.nama,
+    required this.deskripsi,
+    required this.harga,
+    required this.linkGambar,
+    required this.kategori,
+    required this.varian,
+  });
+
+  factory DataDetailProduk.fromJson(Map json) {
+    final produk = json['produk'];
+    final List varianList = json['varian'] ?? [];
+
+    return DataDetailProduk(
+      id: produk['id'],
+      nama: produk['nama'],
+      deskripsi: produk['deskripsi'],
+      harga: produk['harga'],
+      linkGambar: produk['link_gambar'],
+      kategori: produk['kategori'],
+      varian: varianList.map((v) => DataVarianProduk.fromJson(v)).toList(),
+    );
+  }
+
+  static Future fetchDataDetailProduk(String id) async {
+    final url = Uri.parse(
+      'http://192.168.1.96:3000/api/adminTampilUpdateProduk/$id',
+    );
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        final data = body['data'];
+        return DataDetailProduk.fromJson(data);
+      } else {
+        return null;
+      }
+    } catch (e) {
+      throw Exception('Gagal mengambil detail produk: $e');
+    }
   }
 }
 
@@ -1247,30 +1331,33 @@ class PostUpdateProduk {
     final url = Uri.parse('http://192.168.1.96:3000/api/adminUpdateProduk/$id');
 
     try {
-      final request = http.MultipartRequest('PUT', url);
+      final request = http.MultipartRequest('PATCH', url);
 
-      // Tambahkan field biasa
       request.fields['nama_produk'] = namaProduk;
       request.fields['deskripsi'] = deskripsi;
       request.fields['harga_produk'] = hargaProduk;
       request.fields['harga_awal'] = hargaAwal;
-
-      // Konversi list varian menjadi JSON string
       request.fields['varian'] = jsonEncode(varianList);
 
-      // Tambahkan file gambar
+      print("🟡 Kirim field:");
+      print("nama_produk: $namaProduk");
+      print("deskripsi: $deskripsi");
+      print("harga_produk: $hargaProduk");
+      print("harga_awal: $hargaAwal");
+      print("varianList (encoded): ${jsonEncode(varianList)}");
+
       for (var file in gambarList) {
         final mimeType = lookupMimeType(file.path) ?? 'image/jpeg';
         final multipartFile = await http.MultipartFile.fromPath(
           'link_gambar',
           file.path,
           contentType: MediaType.parse(mimeType),
-          filename: file.path.split('/').last, // Untuk mencocokkan originalname
+          filename: file.path.split('/').last,
         );
+        print("🟢 Upload gambar: ${file.path.split('/').last}");
         request.files.add(multipartFile);
       }
 
-      // Kirim request
       final response = await request.send().timeout(
         const Duration(seconds: 10),
         onTimeout: () {
@@ -1279,6 +1366,9 @@ class PostUpdateProduk {
       );
 
       final responseBody = await response.stream.bytesToString();
+
+      print("📥 Status code: ${response.statusCode}");
+      print("📥 Response body: $responseBody");
 
       if (responseBody.isEmpty) {
         return PostUpdateProduk(
@@ -1290,22 +1380,26 @@ class PostUpdateProduk {
       final data = jsonDecode(responseBody);
 
       if (response.statusCode == 200) {
+        print("✅ Berhasil update produk.");
         return PostUpdateProduk(
           pesan: data['pesan'] ?? 'Produk berhasil diperbarui.',
           success: true,
         );
       } else {
+        print("❌ Gagal update. Pesan: ${data['pesan']}");
         return PostUpdateProduk(
           pesan: data['pesan'] ?? 'Gagal memperbarui produk.',
           success: false,
         );
       }
-    } on FormatException {
+    } on FormatException catch (e) {
+      print("❌ FormatException: $e");
       return PostUpdateProduk(
         pesan: 'Format respon server tidak valid.',
         success: false,
       );
     } catch (e) {
+      print("❌ Exception saat kirimUpdateProduk: $e");
       String errorMessage = 'Terjadi kesalahan tidak terduga.';
       if (e.toString().contains('SocketException')) {
         errorMessage =
