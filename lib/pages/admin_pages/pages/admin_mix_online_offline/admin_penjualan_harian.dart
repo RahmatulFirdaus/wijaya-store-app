@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/models/admin_model.dart';
-import 'package:http/http.dart' as http;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'dart:convert';
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart'; // Add this import
 
 class PenjualanHarianPage extends StatefulWidget {
   const PenjualanHarianPage({super.key});
@@ -23,6 +23,9 @@ class _PenjualanHarianPageState extends State<PenjualanHarianPage>
   @override
   void initState() {
     super.initState();
+    // Initialize Indonesian locale
+    initializeDateFormatting('id_ID', null);
+
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -811,76 +814,362 @@ class _PenjualanHarianPageState extends State<PenjualanHarianPage>
   }
 }
 
-// Fungsi PDF dengan styling yang lebih baik
+String formatRupiah(int amount) {
+  final formatter = NumberFormat.currency(
+    locale: 'id_ID',
+    symbol: 'Rp ',
+    decimalDigits: 0,
+  );
+  return formatter.format(amount);
+}
+
 Future<pw.Document> generateLaporanPDF(List<LaporanHarian> data) async {
+  // Initialize Indonesian locale for PDF generation
+  await initializeDateFormatting('id_ID', null);
+
   final pdf = pw.Document();
+
+  // Calculate totals
+  int totalPenjualanOfflineSum = data.fold(
+    0,
+    (sum, item) => sum + item.totalPenjualanOffline,
+  );
+  int totalPenjualanOnlineSum = data.fold(
+    0,
+    (sum, item) => sum + item.totalPenjualanOnline,
+  );
+  int totalKeuntunganSum = data.fold(
+    0,
+    (sum, item) => sum + item.totalKeuntunganHarian,
+  );
+  int totalGajiSum = data.fold(0, (sum, item) => sum + item.gajiKaryawanHarian);
+  int totalKeuntunganBersihSum = data.fold(
+    0,
+    (sum, item) => sum + item.keuntunganBersih,
+  );
+  int grandTotalPenjualan = totalPenjualanOfflineSum + totalPenjualanOnlineSum;
 
   pdf.addPage(
     pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
-      margin: const pw.EdgeInsets.all(32),
+      margin: const pw.EdgeInsets.all(24),
       build:
           (context) => [
-            // Header
+            // Header Section
             pw.Container(
-              padding: const pw.EdgeInsets.only(bottom: 20),
-              decoration: const pw.BoxDecoration(
-                border: pw.Border(bottom: pw.BorderSide(width: 2)),
+              padding: const pw.EdgeInsets.all(20),
+              decoration: pw.BoxDecoration(
+                gradient: const pw.LinearGradient(
+                  colors: [PdfColors.blue900, PdfColors.blue700],
+                ),
+                borderRadius: pw.BorderRadius.circular(8),
+              ),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'LAPORAN PENJUALAN HARIAN',
+                        style: pw.TextStyle(
+                          fontSize: 22,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.white,
+                        ),
+                      ),
+                      pw.SizedBox(height: 4),
+                      pw.Text(
+                        'Periode: ${data.isNotEmpty ? data.first.tanggal : ''} - ${data.isNotEmpty ? data.last.tanggal : ''}',
+                        style: const pw.TextStyle(
+                          fontSize: 12,
+                          color: PdfColors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text(
+                        'Tanggal Generate:',
+                        style: const pw.TextStyle(
+                          fontSize: 10,
+                          color: PdfColors.white,
+                        ),
+                      ),
+                      pw.Text(
+                        DateFormat(
+                          'dd MMMM yyyy',
+                          'id_ID',
+                        ).format(DateTime.now()),
+                        style: pw.TextStyle(
+                          fontSize: 12,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            pw.SizedBox(height: 24),
+
+            // Summary Cards
+            pw.Row(
+              children: [
+                pw.Expanded(
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.all(16),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.green50,
+                      border: pw.Border.all(color: PdfColors.green200),
+                      borderRadius: pw.BorderRadius.circular(8),
+                    ),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'Total Penjualan',
+                          style: pw.TextStyle(
+                            fontSize: 10,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.green800,
+                          ),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          formatRupiah(grandTotalPenjualan),
+                          style: pw.TextStyle(
+                            fontSize: 14,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.green900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                pw.SizedBox(width: 12),
+                pw.Expanded(
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.all(16),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.blue50,
+                      border: pw.Border.all(color: PdfColors.blue200),
+                      borderRadius: pw.BorderRadius.circular(8),
+                    ),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'Total Keuntungan',
+                          style: pw.TextStyle(
+                            fontSize: 10,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.blue800,
+                          ),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          formatRupiah(totalKeuntunganSum),
+                          style: pw.TextStyle(
+                            fontSize: 14,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.blue900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                pw.SizedBox(width: 12),
+                pw.Expanded(
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.all(16),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.purple50,
+                      border: pw.Border.all(color: PdfColors.purple200),
+                      borderRadius: pw.BorderRadius.circular(8),
+                    ),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'Keuntungan Bersih',
+                          style: pw.TextStyle(
+                            fontSize: 10,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.purple800,
+                          ),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          formatRupiah(totalKeuntunganBersihSum),
+                          style: pw.TextStyle(
+                            fontSize: 14,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.purple900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            pw.SizedBox(height: 24),
+
+            // Table Section
+            pw.Container(
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(color: PdfColors.grey300),
+                borderRadius: pw.BorderRadius.circular(8),
+              ),
+              child: pw.Table(
+                border: pw.TableBorder(
+                  horizontalInside: pw.BorderSide(
+                    color: PdfColors.grey200,
+                    width: 0.5,
+                  ),
+                  verticalInside: pw.BorderSide(
+                    color: PdfColors.grey200,
+                    width: 0.5,
+                  ),
+                ),
+                columnWidths: {
+                  0: const pw.FlexColumnWidth(1.2), // Tanggal
+                  1: const pw.FlexColumnWidth(1.3), // Offline
+                  2: const pw.FlexColumnWidth(1.3), // Online
+                  3: const pw.FlexColumnWidth(1.2), // Untung Offline
+                  4: const pw.FlexColumnWidth(1.2), // Untung Online
+                  5: const pw.FlexColumnWidth(1.3), // Total Harian
+                  6: const pw.FlexColumnWidth(1.2), // Total Untung
+                  7: const pw.FlexColumnWidth(1.2), // Gaji Harian
+                  8: const pw.FlexColumnWidth(1.3), // Untung Bersih
+                },
+                children: [
+                  // Header Row
+                  pw.TableRow(
+                    decoration: const pw.BoxDecoration(
+                      color: PdfColors.grey800,
+                    ),
+                    children: [
+                      _buildHeaderCell('Tanggal'),
+                      _buildHeaderCell('Penjualan\nOffline'),
+                      _buildHeaderCell('Penjualan\nOnline'),
+                      _buildHeaderCell('Untung\nOffline'),
+                      _buildHeaderCell('Untung\nOnline'),
+                      _buildHeaderCell('Total\nHarian'),
+                      _buildHeaderCell('Total\nUntung'),
+                      _buildHeaderCell('Gaji\nHarian'),
+                      _buildHeaderCell('Untung\nBersih'),
+                    ],
+                  ),
+                  // Data Rows
+                  ...data.asMap().entries.map((entry) {
+                    int index = entry.key;
+                    LaporanHarian laporan = entry.value;
+                    bool isEven = index % 2 == 0;
+
+                    return pw.TableRow(
+                      decoration: pw.BoxDecoration(
+                        color: isEven ? PdfColors.grey50 : PdfColors.white,
+                      ),
+                      children: [
+                        _buildDataCell(
+                          DateFormat(
+                            'dd/MM/yy',
+                          ).format(DateTime.parse(laporan.tanggal)),
+                        ),
+                        _buildDataCell(
+                          formatRupiah(laporan.totalPenjualanOffline),
+                        ),
+                        _buildDataCell(
+                          formatRupiah(laporan.totalPenjualanOnline),
+                        ),
+                        _buildDataCell(
+                          formatRupiah(laporan.keuntunganPenjualanOffline),
+                        ),
+                        _buildDataCell(
+                          formatRupiah(laporan.keuntunganPenjualanOnline),
+                        ),
+                        _buildDataCell(formatRupiah(laporan.totalHarian)),
+                        _buildDataCell(
+                          formatRupiah(laporan.totalKeuntunganHarian),
+                        ),
+                        _buildDataCell(
+                          formatRupiah(laporan.gajiKaryawanHarian),
+                        ),
+                        _buildDataCell(
+                          formatRupiah(laporan.keuntunganBersih),
+                          color:
+                              laporan.keuntunganBersih >= 0
+                                  ? PdfColors.green800
+                                  : PdfColors.red800,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                  // Total Row
+                  pw.TableRow(
+                    decoration: const pw.BoxDecoration(
+                      color: PdfColors.blue100,
+                    ),
+                    children: [
+                      _buildTotalCell('TOTAL'),
+                      _buildTotalCell(formatRupiah(totalPenjualanOfflineSum)),
+                      _buildTotalCell(formatRupiah(totalPenjualanOnlineSum)),
+                      _buildTotalCell('-'),
+                      _buildTotalCell('-'),
+                      _buildTotalCell(formatRupiah(grandTotalPenjualan)),
+                      _buildTotalCell(formatRupiah(totalKeuntunganSum)),
+                      _buildTotalCell(formatRupiah(totalGajiSum)),
+                      _buildTotalCell(
+                        formatRupiah(totalKeuntunganBersihSum),
+                        color:
+                            totalKeuntunganBersihSum >= 0
+                                ? PdfColors.green800
+                                : PdfColors.red800,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            pw.SizedBox(height: 20),
+
+            // Footer
+            pw.Container(
+              padding: const pw.EdgeInsets.all(12),
+              decoration: pw.BoxDecoration(
+                color: PdfColors.grey100,
+                borderRadius: pw.BorderRadius.circular(8),
               ),
               child: pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text(
-                    'Laporan Penjualan Harian',
-                    style: pw.TextStyle(
-                      fontSize: 24,
-                      fontWeight: pw.FontWeight.bold,
+                    'Catatan: Keuntungan bersih sudah dipotong gaji karyawan harian',
+                    style: const pw.TextStyle(
+                      fontSize: 9,
+                      color: PdfColors.grey700,
                     ),
                   ),
                   pw.Text(
-                    'Generated: ${DateTime.now().toString().split(' ')[0]}',
-                    style: const pw.TextStyle(fontSize: 12),
+                    'Total Hari: ${data.length} hari',
+                    style: pw.TextStyle(
+                      fontSize: 9,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.grey700,
+                    ),
                   ),
                 ],
-              ),
-            ),
-            pw.SizedBox(height: 30),
-
-            // Table
-            pw.Table.fromTextArray(
-              headers: [
-                'Tanggal',
-                'Offline',
-                'Online',
-                'Untung Offline',
-                'Untung Online',
-                'Total Harian',
-                'Total Untung',
-              ],
-              data:
-                  data.map((laporan) {
-                    return [
-                      laporan.tanggal,
-                      laporan.totalPenjualanOffline.toString(),
-                      laporan.totalPenjualanOnline.toString(),
-                      laporan.keuntunganPenjualanOffline.toString(),
-                      laporan.keuntunganPenjualanOnline.toString(),
-                      laporan.totalHarian.toString(),
-                      laporan.totalKeuntunganHarian.toString(),
-                    ];
-                  }).toList(),
-              cellStyle: const pw.TextStyle(fontSize: 10),
-              headerStyle: pw.TextStyle(
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColors.white,
-                fontSize: 11,
-              ),
-              headerDecoration: const pw.BoxDecoration(color: PdfColors.black),
-              cellAlignment: pw.Alignment.center,
-              cellPadding: const pw.EdgeInsets.all(8),
-              border: pw.TableBorder.all(width: 0.5, color: PdfColors.grey300),
-              oddRowDecoration: const pw.BoxDecoration(
-                color: PdfColors.grey100,
               ),
             ),
           ],
@@ -888,4 +1177,56 @@ Future<pw.Document> generateLaporanPDF(List<LaporanHarian> data) async {
   );
 
   return pdf;
+}
+
+// Helper function to build header cells
+pw.Widget _buildHeaderCell(String text) {
+  return pw.Container(
+    padding: const pw.EdgeInsets.all(8),
+    child: pw.Text(
+      text,
+      style: pw.TextStyle(
+        fontSize: 9,
+        fontWeight: pw.FontWeight.bold,
+        color: PdfColors.white,
+      ),
+      textAlign: pw.TextAlign.center,
+    ),
+  );
+}
+
+// Helper function to build data cells
+pw.Widget _buildDataCell(
+  String text, {
+  PdfColor? color,
+  pw.FontWeight? fontWeight,
+}) {
+  return pw.Container(
+    padding: const pw.EdgeInsets.all(6),
+    child: pw.Text(
+      text,
+      style: pw.TextStyle(
+        fontSize: 8,
+        color: color ?? PdfColors.black,
+        fontWeight: fontWeight,
+      ),
+      textAlign: pw.TextAlign.center,
+    ),
+  );
+}
+
+// Helper function to build total cells
+pw.Widget _buildTotalCell(String text, {PdfColor? color}) {
+  return pw.Container(
+    padding: const pw.EdgeInsets.all(8),
+    child: pw.Text(
+      text,
+      style: pw.TextStyle(
+        fontSize: 9,
+        fontWeight: pw.FontWeight.bold,
+        color: color ?? PdfColors.blue900,
+      ),
+      textAlign: pw.TextAlign.center,
+    ),
+  );
 }

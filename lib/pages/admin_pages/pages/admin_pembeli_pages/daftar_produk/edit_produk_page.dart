@@ -81,7 +81,7 @@ class _EditProdukPageState extends State<EditProdukPage> {
       _deskripsiController.text = _produkDetail!.deskripsi;
       _hargaProdukController.text = _produkDetail!.harga;
       _hargaAwalController.text =
-          _produkDetail!.harga; // Sesuaikan jika ada field harga awal
+          _produkDetail!.hargaAwal; // Sesuaikan jika ada field harga awal
 
       // Convert varian ke EditVarianProduk
       _varianList =
@@ -219,39 +219,100 @@ class _EditProdukPageState extends State<EditProdukPage> {
       return;
     }
 
+    // Validasi setiap varian baru harus punya gambar
+    for (var varian in _varianList) {
+      if (!varian.isExisting &&
+          varian.gambarVarianFile == null &&
+          varian.linkGambarVarian.isEmpty) {
+        _showToast(
+          'Varian "${varian.warna}" harus memiliki gambar',
+          type: ToastificationType.error,
+        );
+        return;
+      }
+    }
+
     setState(() {
       _isUpdating = true;
     });
 
     try {
-      // Siapkan data untuk dikirim
+      // Siapkan data gambar dengan urutan yang benar
       List<File> gambarList = [];
 
-      // Tambahkan gambar utama jika ada yang baru
-      if (_gambarProdukBaru != null) {
+      // LANGKAH 1: Tambahkan gambar utama HANYA jika ada yang baru
+      bool adaGambarUtamaBaru = _gambarProdukBaru != null;
+      if (adaGambarUtamaBaru) {
         gambarList.add(_gambarProdukBaru!);
+        print("🔵 Gambar utama baru ditambahkan ke index 0");
       }
 
-      // Tambahkan gambar varian baru
-      for (var varian in _varianList) {
-        if (!varian.isExisting && varian.gambarVarianFile != null) {
+      // LANGKAH 2: Tambahkan gambar varian yang baru dalam urutan yang benar
+      List<int> varianDenganGambarBaru = [];
+      for (int i = 0; i < _varianList.length; i++) {
+        var varian = _varianList[i];
+        if (varian.gambarVarianFile != null) {
           gambarList.add(varian.gambarVarianFile!);
+          varianDenganGambarBaru.add(i);
+          print(
+            "🟢 Gambar varian ${varian.warna} ditambahkan ke index ${gambarList.length - 1}",
+          );
         }
       }
 
-      // Convert varian ke format yang dibutuhkan API
-      List<Map<String, dynamic>> varianData =
-          _varianList.map((varian) {
-            return {
-              'id': varian.isExisting ? varian.id : null,
-              'warna': varian.warna,
-              'ukuran': varian.ukuran,
-              'stok': varian.stok,
-              'is_new': !varian.isExisting,
-            };
-          }).toList();
+      // LANGKAH 3: Convert varian ke format yang dibutuhkan API
+      List<Map<String, dynamic>> varianData = [];
 
-      // Kirim data ke server
+      for (int i = 0; i < _varianList.length; i++) {
+        var varian = _varianList[i];
+
+        // Set has_new_image dengan benar
+        bool hasNewImage = varian.gambarVarianFile != null;
+
+        // PERBAIKAN UTAMA: Pastikan ID varian tidak null untuk existing
+        int? varianId = varian.isExisting ? varian.id : null;
+
+        // VALIDASI KHUSUS: Jika existing tapi ID null, skip atau beri warning
+        if (varian.isExisting && varianId == null) {
+          print(
+            "⚠️ WARNING: Varian existing '${varian.warna}' tidak memiliki ID yang valid!",
+          );
+          _showToast(
+            'Error: Varian "${varian.warna}" tidak memiliki ID yang valid',
+            type: ToastificationType.error,
+          );
+          return;
+        }
+
+        varianData.add({
+          'id_varian':
+              varianId, // PERBAIKAN: Pastikan ini tidak null untuk existing
+          'warna': varian.warna,
+          'ukuran': varian.ukuran,
+          'stok': varian.stok,
+          'is_new': !varian.isExisting,
+          'has_new_image': hasNewImage,
+        });
+      }
+
+      // Debug logging yang lebih detail
+      print("=== DEBUG SUBMIT DETAIL ===");
+      print("Ada gambar utama baru: $adaGambarUtamaBaru");
+      print("Total gambar akan diupload: ${gambarList.length}");
+      print("Varian dengan gambar baru: ${varianDenganGambarBaru.length}");
+
+      for (int i = 0; i < varianData.length; i++) {
+        var varian = varianData[i];
+        print("Varian $i:");
+        print("  - ID: ${varian['id_varian']}");
+        print("  - Warna: ${varian['warna']}");
+        print("  - Ukuran: ${varian['ukuran']}");
+        print("  - Stok: ${varian['stok']}");
+        print("  - IsNew: ${varian['is_new']}");
+        print("  - HasNewImage: ${varian['has_new_image']}");
+      }
+
+      // LANGKAH 4: Kirim data ke server
       final result = await PostUpdateProduk.kirimUpdateProduk(
         id: widget.product.id.toString(),
         namaProduk: _namaProdukController.text,
@@ -260,6 +321,7 @@ class _EditProdukPageState extends State<EditProdukPage> {
         hargaAwal: _hargaAwalController.text,
         gambarList: gambarList,
         varianList: varianData,
+        adaGambarUtamaBaru: adaGambarUtamaBaru,
       );
 
       if (result.success) {
@@ -619,6 +681,18 @@ class _DialogTambahEditVarianState extends State<_DialogTambahEditVarian> {
 
   void _simpanVarian() {
     if (_formKey.currentState!.validate()) {
+      // PERBAIKAN: Validasi gambar untuk varian baru
+      if (widget.existingVarian == null && _gambarVarian == null) {
+        // Ini varian baru tapi tidak ada gambar
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Varian baru harus memiliki gambar'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
       final varian = EditVarianProduk(
         id: widget.existingVarian?.id,
         warna: _warnaController.text,
@@ -626,7 +700,7 @@ class _DialogTambahEditVarianState extends State<_DialogTambahEditVarian> {
         stok: int.parse(_stokController.text),
         linkGambarVarian: _linkGambarLama,
         gambarVarianFile: _gambarVarian,
-        isExisting: widget.existingVarian != null && _gambarVarian == null,
+        isExisting: widget.existingVarian != null,
       );
 
       widget.onTambahVarian(varian);

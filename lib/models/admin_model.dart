@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
+import 'dart:async';
 
 //CLASS GET
 class LaporanHarian {
@@ -14,6 +15,8 @@ class LaporanHarian {
   final int keuntunganPenjualanOnline;
   final int totalHarian;
   final int totalKeuntunganHarian;
+  final int gajiKaryawanHarian;
+  final int keuntunganBersih;
 
   LaporanHarian({
     required this.tanggal,
@@ -23,6 +26,8 @@ class LaporanHarian {
     required this.keuntunganPenjualanOnline,
     required this.totalHarian,
     required this.totalKeuntunganHarian,
+    required this.gajiKaryawanHarian,
+    required this.keuntunganBersih,
   });
 
   factory LaporanHarian.fromJson(Map<String, dynamic> json) {
@@ -34,6 +39,8 @@ class LaporanHarian {
       keuntunganPenjualanOnline: json['keuntungan_penjualan_online'],
       totalHarian: json['total_harian'],
       totalKeuntunganHarian: json['total_keuntungan_harian'],
+      gajiKaryawanHarian: json['gaji_karyawan_harian'],
+      keuntunganBersih: json['keuntungan_bersih'],
     );
   }
 
@@ -1264,6 +1271,7 @@ class DataDetailProduk {
   final String nama;
   final String deskripsi;
   final String harga;
+  final String hargaAwal;
   final String linkGambar;
   final String kategori;
   final List varian;
@@ -1273,6 +1281,7 @@ class DataDetailProduk {
     required this.nama,
     required this.deskripsi,
     required this.harga,
+    required this.hargaAwal,
     required this.linkGambar,
     required this.kategori,
     required this.varian,
@@ -1287,6 +1296,7 @@ class DataDetailProduk {
       nama: produk['nama'],
       deskripsi: produk['deskripsi'],
       harga: produk['harga'],
+      hargaAwal: produk['harga_awal'],
       linkGambar: produk['link_gambar'],
       kategori: produk['kategori'],
       varian: varianList.map((v) => DataVarianProduk.fromJson(v)).toList(),
@@ -1327,16 +1337,20 @@ class PostUpdateProduk {
     required String hargaAwal,
     required List<File> gambarList,
     required List<Map<String, dynamic>> varianList,
+    bool adaGambarUtamaBaru = false, // Parameter tambahan
   }) async {
     final url = Uri.parse('http://192.168.1.96:3000/api/adminUpdateProduk/$id');
 
     try {
-      final request = http.MultipartRequest('PATCH', url);
+      final request = http.MultipartRequest('PUT', url);
 
       request.fields['nama_produk'] = namaProduk;
       request.fields['deskripsi'] = deskripsi;
       request.fields['harga_produk'] = hargaProduk;
       request.fields['harga_awal'] = hargaAwal;
+
+      // PERBAIKAN: Tambahkan informasi ada gambar utama baru atau tidak
+      request.fields['ada_gambar_utama_baru'] = adaGambarUtamaBaru.toString();
       request.fields['varian'] = jsonEncode(varianList);
 
       print("🟡 Kirim field:");
@@ -1344,9 +1358,12 @@ class PostUpdateProduk {
       print("deskripsi: $deskripsi");
       print("harga_produk: $hargaProduk");
       print("harga_awal: $hargaAwal");
+      print("ada_gambar_utama_baru: $adaGambarUtamaBaru");
       print("varianList (encoded): ${jsonEncode(varianList)}");
 
-      for (var file in gambarList) {
+      // PERBAIKAN: Upload gambar dengan detail logging
+      for (int i = 0; i < gambarList.length; i++) {
+        var file = gambarList[i];
         final mimeType = lookupMimeType(file.path) ?? 'image/jpeg';
         final multipartFile = await http.MultipartFile.fromPath(
           'link_gambar',
@@ -1354,12 +1371,23 @@ class PostUpdateProduk {
           contentType: MediaType.parse(mimeType),
           filename: file.path.split('/').last,
         );
-        print("🟢 Upload gambar: ${file.path.split('/').last}");
+
+        String jenisGambar;
+        if (i == 0 && adaGambarUtamaBaru) {
+          jenisGambar = "GAMBAR UTAMA";
+        } else {
+          int varianIndex = adaGambarUtamaBaru ? i - 1 : i;
+          jenisGambar = "GAMBAR VARIAN ${varianIndex + 1}";
+        }
+
+        print(
+          "🟢 Upload [$jenisGambar] index $i: ${file.path.split('/').last}",
+        );
         request.files.add(multipartFile);
       }
 
       final response = await request.send().timeout(
-        const Duration(seconds: 10),
+        const Duration(seconds: 30), // Extend timeout
         onTimeout: () {
           throw Exception('Koneksi timeout. Periksa koneksi internet Anda.');
         },
@@ -1411,6 +1439,246 @@ class PostUpdateProduk {
       }
 
       return PostUpdateProduk(pesan: errorMessage, success: false);
+    }
+  }
+}
+
+//khusus gaji karyawan
+class GajiKaryawan {
+  final int id;
+  final int idPengguna;
+  final int jumlahGaji;
+
+  GajiKaryawan({
+    required this.id,
+    required this.idPengguna,
+    required this.jumlahGaji,
+  });
+
+  factory GajiKaryawan.fromJson(Map<String, dynamic> json) {
+    return GajiKaryawan(
+      id: json['id'] ?? 0,
+      idPengguna: json['id_pengguna'] ?? 0,
+      jumlahGaji: json['jumlah_gaji'] ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': idPengguna, // backend expects 'id' not 'id_pengguna'
+      'jumlah_gaji': jumlahGaji,
+    };
+  }
+}
+
+// Response wrapper untuk operasi CRUD
+class ApiResponse<T> {
+  final bool success;
+  final T? data;
+  final String message;
+
+  ApiResponse({required this.success, this.data, required this.message});
+}
+
+class GajiKaryawanService {
+  static const String baseUrl = 'http://192.168.1.96:3000/api';
+
+  // Helper method untuk handle response error
+  static String _getErrorMessage(http.Response response) {
+    try {
+      final body = jsonDecode(response.body);
+      return body['message'] ?? body['error'] ?? 'Terjadi kesalahan';
+    } catch (e) {
+      switch (response.statusCode) {
+        case 400:
+          return 'Data yang dikirim tidak valid';
+        case 401:
+          return 'Tidak memiliki akses';
+        case 403:
+          return 'Akses ditolak';
+        case 404:
+          return 'Data tidak ditemukan';
+        case 500:
+          return 'Terjadi kesalahan pada server';
+        default:
+          return 'Terjadi kesalahan (${response.statusCode})';
+      }
+    }
+  }
+
+  // Helper method untuk handle network error
+  static String _handleNetworkError(dynamic error) {
+    if (error is SocketException) {
+      return 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.';
+    } else if (error is TimeoutException) {
+      return 'Koneksi timeout. Coba lagi nanti.';
+    } else {
+      return 'Terjadi kesalahan jaringan: ${error.toString()}';
+    }
+  }
+
+  // POST: Menambahkan data gaji karyawan
+  static Future<ApiResponse<bool>> tambahGajiKaryawan(GajiKaryawan gaji) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/adminTambahGajiKaryawan'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(gaji.toJson()),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return ApiResponse(
+          success: true,
+          data: true,
+          message: 'Data gaji berhasil ditambahkan',
+        );
+      } else {
+        return ApiResponse(
+          success: false,
+          data: false,
+          message: _getErrorMessage(response),
+        );
+      }
+    } catch (e) {
+      return ApiResponse(
+        success: false,
+        data: false,
+        message: _handleNetworkError(e),
+      );
+    }
+  }
+
+  // PATCH: Update data gaji karyawan
+  static Future<ApiResponse<bool>> updateGajiKaryawan(
+    int id,
+    int jumlahGaji,
+  ) async {
+    try {
+      final response = await http
+          .patch(
+            Uri.parse('$baseUrl/adminUpdateGajiKaryawan/$id'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'jumlah_gaji': jumlahGaji}),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        return ApiResponse(
+          success: true,
+          data: true,
+          message: 'Data gaji berhasil diperbarui',
+        );
+      } else {
+        return ApiResponse(
+          success: false,
+          data: false,
+          message: _getErrorMessage(response),
+        );
+      }
+    } catch (e) {
+      return ApiResponse(
+        success: false,
+        data: false,
+        message: _handleNetworkError(e),
+      );
+    }
+  }
+
+  // DELETE: Hapus data gaji karyawan
+  static Future<ApiResponse<bool>> deleteGajiKaryawan(int id) async {
+    try {
+      final response = await http
+          .delete(Uri.parse('$baseUrl/adminDeleteGajiKaryawan/$id'))
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        return ApiResponse(
+          success: true,
+          data: true,
+          message: 'Data gaji berhasil dihapus',
+        );
+      } else {
+        return ApiResponse(
+          success: false,
+          data: false,
+          message: _getErrorMessage(response),
+        );
+      }
+    } catch (e) {
+      return ApiResponse(
+        success: false,
+        data: false,
+        message: _handleNetworkError(e),
+      );
+    }
+  }
+}
+
+class PenggunaKaryawan {
+  final int id;
+  final String nama;
+
+  PenggunaKaryawan({required this.id, required this.nama});
+
+  factory PenggunaKaryawan.fromJson(Map<String, dynamic> json) {
+    return PenggunaKaryawan(id: json['id'], nama: json['nama']);
+  }
+
+  static Future<List<PenggunaKaryawan>> fetchPenggunaKaryawan() async {
+    final url = Uri.parse(
+      'http://192.168.1.96:3000/api/adminTampilDataPenggunaKaryawan',
+    );
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        final List dataList = body['data'];
+        return dataList.map((e) => PenggunaKaryawan.fromJson(e)).toList();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      throw Exception('Gagal mengambil data pengguna karyawan: $e');
+    }
+  }
+}
+
+class TampilGajiKaryawan {
+  final int id;
+  final String nama;
+  final String gaji;
+
+  TampilGajiKaryawan({
+    required this.id,
+    required this.nama,
+    required this.gaji,
+  });
+
+  factory TampilGajiKaryawan.fromJson(Map<String, dynamic> json) {
+    return TampilGajiKaryawan(
+      id: json['id'],
+      nama: json['nama'],
+      gaji: json['gaji'],
+    );
+  }
+
+  static Future<List<TampilGajiKaryawan>> fetchGajiKaryawan() async {
+    final url = Uri.parse(
+      'http://192.168.1.96:3000/api/adminTampilGajiKaryawan',
+    );
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        final List dataList = body['data'];
+        return dataList.map((e) => TampilGajiKaryawan.fromJson(e)).toList();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      throw Exception('Gagal mengambil data gaji karyawan: $e');
     }
   }
 }
