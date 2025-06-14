@@ -73,6 +73,9 @@ class _FakturOnlinePageState extends State<FakturOnlinePage>
                   ) ||
                   faktur.tanggalFaktur.toLowerCase().contains(
                     query.toLowerCase(),
+                  ) ||
+                  faktur.alamatPengiriman.toLowerCase().contains(
+                    query.toLowerCase(),
                   );
             }).toList();
       }
@@ -169,6 +172,23 @@ class _FakturOnlinePageState extends State<FakturOnlinePage>
                       ),
                     ],
                   ),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 10),
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'Alamat Pengiriman:',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                ),
+                pw.Text(
+                  faktur.alamatPengiriman.isNotEmpty
+                      ? faktur.alamatPengiriman
+                      : 'Tidak ada alamat',
+                  style: const pw.TextStyle(fontSize: 12),
+                  maxLines: 3,
                 ),
               ],
             ),
@@ -508,6 +528,15 @@ class _FakturOnlinePageState extends State<FakturOnlinePage>
                                 fontSize: 10,
                                 color: PdfColors.blue700,
                               ),
+                            ),
+                            pw.SizedBox(height: 2),
+                            pw.Text(
+                              'Alamat: ${faktur.alamatPengiriman.isNotEmpty ? faktur.alamatPengiriman : 'Tidak ada alamat'}',
+                              style: const pw.TextStyle(
+                                fontSize: 9,
+                                color: PdfColors.blue600,
+                              ),
+                              maxLines: 2,
                             ),
                           ],
                         ),
@@ -870,7 +899,8 @@ class _FakturOnlinePageState extends State<FakturOnlinePage>
               controller: _searchController,
               onChanged: _filterFaktur,
               decoration: InputDecoration(
-                hintText: 'Cari nama pembeli, nomor faktur, atau tanggal...',
+                hintText:
+                    'Cari nama pembeli, nomor faktur, tanggal, atau alamat...',
                 hintStyle: TextStyle(color: Colors.grey.shade500),
                 prefixIcon: const Icon(Icons.search, color: Color(0xFF3B82F6)),
                 suffixIcon:
@@ -1141,6 +1171,19 @@ class _FakturOnlinePageState extends State<FakturOnlinePage>
                       ),
                     ),
                   ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // Alamat Pengiriman Info
+                _buildInfoCard(
+                  icon: Icons.location_on_outlined,
+                  title: 'Alamat Pengiriman',
+                  value:
+                      faktur.alamatPengiriman.isNotEmpty
+                          ? faktur.alamatPengiriman
+                          : 'Tidak ada alamat',
+                  color: const Color(0xFF8B5CF6),
                 ),
 
                 const SizedBox(height: 16),

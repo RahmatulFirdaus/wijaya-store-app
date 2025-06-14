@@ -100,6 +100,7 @@ class GetDataProduk {
   String link_gambar;
   String stok;
   String kategori_produk;
+  String nilaiRating;
 
   GetDataProduk({
     required this.id,
@@ -110,6 +111,7 @@ class GetDataProduk {
     required this.link_gambar,
     required this.stok,
     required this.kategori_produk,
+    required this.nilaiRating,
   });
 
   static Future<List<GetDataProduk>> getDataProduk() async {
@@ -131,6 +133,7 @@ class GetDataProduk {
                 link_gambar: item['link_gambar_produk'].toString(),
                 stok: item['total_stok_produk'].toString(),
                 kategori_produk: item['kategori'].toString(),
+                nilaiRating: item['rating'].toString(),
               ),
             )
             .toList();
