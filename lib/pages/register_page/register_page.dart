@@ -532,21 +532,15 @@ class _RegisterPageState extends State<RegisterPage> {
         );
 
         // Handle response
-        if (result == "Pendaftaran berhasil") {
+        if (result ==
+            "Pendaftaran berhasil! Akun Anda menunggu persetujuan admin.") {
           toastification.show(
             context: context,
-            title: const Text("Daftar Akun Berhasil"),
-            description: Text(result!),
+            title: const Text("Registrasi Berhasil"),
+            description: const Text(
+              "Akun berhasil didaftarkan. Silakan tunggu persetujuan admin.",
+            ),
             type: ToastificationType.success,
-            style: ToastificationStyle.flat,
-            alignment: Alignment.topCenter,
-            autoCloseDuration: const Duration(seconds: 5),
-            icon: const Icon(Icons.check),
-          );
-
-          // Navigate to login page on success
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const LoginPage()),
           );
         } else {
           // Show error message from API

@@ -7,6 +7,51 @@ import 'package:mime/mime.dart';
 import 'dart:async';
 
 //CLASS GET
+class PendingUser {
+  final int id;
+  final String username;
+  final String nama;
+  final String email;
+  final String nomorTelp;
+  final String createdAt;
+
+  PendingUser({
+    required this.id,
+    required this.username,
+    required this.nama,
+    required this.email,
+    required this.nomorTelp,
+    required this.createdAt,
+  });
+
+  factory PendingUser.fromJson(Map<String, dynamic> json) {
+    return PendingUser(
+      id: json['id'],
+      username: json['username'],
+      nama: json['nama'],
+      email: json['email'],
+      nomorTelp: json['nomor_telp'],
+      createdAt: json['created_at'],
+    );
+  }
+
+  static Future<List<PendingUser>> fetchPendingUsers() async {
+    final url = Uri.parse('http://192.168.1.96:3000/api/admin/pending-users');
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        final List dataList = body['data'];
+        return dataList.map((e) => PendingUser.fromJson(e)).toList();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      throw Exception('Gagal mengambil data pengguna pending: $e');
+    }
+  }
+}
+
 class LaporanHarian {
   final String tanggal;
   final int totalPenjualanOffline;
@@ -899,6 +944,30 @@ class TambahMetodePembayaranService {
 }
 
 //CLASS UPDATE
+class UpdateUserStatusService {
+  static Future<String> updateUserStatus({
+    required String id,
+    required String status,
+  }) async {
+    final url = Uri.parse(
+      'http://192.168.1.96:3000/api/admin/update-user-status',
+    );
+
+    try {
+      final response = await http.patch(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'status': status, 'id': id}),
+      );
+
+      final body = jsonDecode(response.body);
+      return body['pesan'] ?? 'Status pengguna berhasil diperbarui';
+    } catch (e) {
+      return 'Gagal update status pengguna: $e';
+    }
+  }
+}
+
 class UpdateAkunService {
   static Future<String> updateAkun({
     required String id,
