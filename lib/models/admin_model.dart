@@ -1914,3 +1914,172 @@ class TampilGajiKaryawan {
     }
   }
 }
+
+//Khusus keranjang admin
+class KeranjangItem {
+  final String idItemOrder; // Tetap String karena digunakan untuk API call
+  final int idVarianProduk;
+  final String linkGambarVarian;
+  final int hargaAwal;
+  final String namaProduk;
+  final String warna;
+  final String ukuran;
+  final int jumlah;
+  final int hargaSatuan;
+
+  KeranjangItem({
+    required this.idItemOrder,
+    required this.idVarianProduk,
+    required this.linkGambarVarian,
+    required this.hargaAwal,
+    required this.namaProduk,
+    required this.warna,
+    required this.ukuran,
+    required this.jumlah,
+    required this.hargaSatuan,
+  });
+
+  factory KeranjangItem.fromJson(Map<String, dynamic> json) {
+    return KeranjangItem(
+      // Konversi id_item_order ke String
+      idItemOrder: json['id_item_order']?.toString() ?? '0',
+      idVarianProduk: json['id_varian_produk'] ?? 0,
+      linkGambarVarian: json['link_gambar_varian']?.toString() ?? '',
+      hargaAwal: _parseToInt(json['harga_awal']),
+      namaProduk: json['nama_produk']?.toString() ?? '',
+      warna: json['warna']?.toString() ?? '',
+      ukuran: json['ukuran']?.toString() ?? '',
+      jumlah: _parseToInt(json['jumlah']),
+      hargaSatuan: _parseToInt(json['harga_satuan']),
+    );
+  }
+
+  static int _parseToInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  static Future<List<KeranjangItem>> fetchKeranjang(String idPengguna) async {
+    final url = Uri.parse(
+      'http://192.168.1.96:3000/api/adminTampilKeranjang/$idPengguna',
+    );
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final responseBody = jsonDecode(response.body);
+
+        // Handle different response structures
+        List dataList;
+        if (responseBody is List) {
+          dataList = responseBody;
+        } else if (responseBody is Map && responseBody.containsKey('data')) {
+          dataList = responseBody['data'];
+        } else {
+          dataList = [];
+        }
+
+        return dataList
+            .map((e) => KeranjangItem.fromJson(e as Map<String, dynamic>))
+            .toList();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      throw Exception('Gagal mengambil data keranjang: $e');
+    }
+  }
+}
+
+//KHUSUS MENGAMBIL DATA PENGGUNA PEMBELI
+class PenggunaPembeli {
+  final int id;
+  final String nama;
+
+  PenggunaPembeli({required this.id, required this.nama});
+
+  factory PenggunaPembeli.fromJson(Map<String, dynamic> json) {
+    return PenggunaPembeli(id: json['id'], nama: json['nama']);
+  }
+
+  static Future<List<PenggunaPembeli>> fetchPenggunaPembeli() async {
+    final url = Uri.parse(
+      'http://192.168.1.96:3000/api/adminTampilDataPenggunaPembeli',
+    );
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        final List dataList = body['data'];
+        return dataList.map((e) => PenggunaPembeli.fromJson(e)).toList();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      throw Exception('Gagal mengambil data pengguna pembeli: $e');
+    }
+  }
+}
+
+//Khusus tambah keranjang admin
+class TambahKeranjangAdmin {
+  String id_varian_produk;
+  String jumlahOrder;
+
+  TambahKeranjangAdmin({
+    required this.id_varian_produk,
+    required this.jumlahOrder,
+  });
+
+  static Future<String?> addToKeranjang(
+    String idPengguna,
+    String id_varian_produk,
+    String jumlahOrder,
+  ) async {
+    if (id_varian_produk.isEmpty || jumlahOrder.isEmpty) {
+      throw Exception('ID varian produk dan jumlah order wajib diisi.');
+    }
+
+    int? jumlahInt = int.tryParse(jumlahOrder);
+    if (jumlahInt == null || jumlahInt <= 0) {
+      throw Exception('Jumlah order harus berupa angka positif.');
+    }
+
+    const storage = FlutterSecureStorage();
+    var token = await storage.read(key: 'token');
+
+    if (token == null) {
+      throw Exception('Token tidak ditemukan. Silakan login terlebih dahulu.');
+    }
+
+    Uri url = Uri.parse(
+      "http://192.168.1.96:3000/api/adminTambahKeranjang/$idPengguna",
+    );
+
+    var response = await http.post(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: {'id_varian_produk': id_varian_produk, 'jumlah_order': jumlahOrder},
+    );
+
+    try {
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        var jsonData = jsonDecode(response.body);
+        return jsonData['pesan'] ?? 'Berhasil ditambahkan ke keranjang';
+      } else {
+        var jsonData = jsonDecode(response.body);
+        throw Exception(jsonData['pesan'] ?? 'Gagal menambahkan ke keranjang');
+      }
+    } catch (e) {
+      if (e is FormatException) {
+        throw Exception('Response tidak valid dari server');
+      }
+      rethrow;
+    }
+  }
+}

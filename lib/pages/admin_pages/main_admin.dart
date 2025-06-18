@@ -14,6 +14,7 @@ import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/admin_pengi
 import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/admin_produk_perlu_restok.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_mix_online_offline/admin_transaksi_online.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/admin_ulasan_produk.dart';
+import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/manajemen_pesanan_produk/manajemen_pesanan_produk.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/pembayaran_online/admin_lobby_pembayaran_online.dart';
 
 class MainAdmin extends StatefulWidget {
@@ -155,6 +156,19 @@ class _MainAdminState extends State<MainAdmin> {
             ),
             onTap:
                 (context) => _navigateToPage(context, const UlasanProdukPage()),
+          ),
+          AdminMenuItem(
+            title: 'Manajemen Pesanan Produk',
+            icon: Icons.production_quantity_limits_outlined,
+            color: Colors.blue[700]!,
+            gradient: const LinearGradient(
+              colors: [Color(0xFF42A5F5), Color(0xFF7E57C2)], // biru ke ungu
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            onTap:
+                (context) =>
+                    _navigateToPage(context, const ManajemenPesananProduk()),
           ),
         ],
       ),
