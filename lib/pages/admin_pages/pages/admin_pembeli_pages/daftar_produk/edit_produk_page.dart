@@ -3,6 +3,7 @@ import 'package:frontend/models/admin_model.dart';
 import 'package:frontend/models/pembeli_model.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:toastification/toastification.dart';
+import 'package:mime/mime.dart';
 import 'dart:io';
 
 class EditProdukPage extends StatefulWidget {
@@ -34,6 +35,9 @@ class _EditProdukPageState extends State<EditProdukPage> {
   // File gambar utama produk (jika diganti)
   File? _gambarProdukBaru;
 
+  // File video demo produk (jika diganti)
+  File? _videoDemoBaru;
+
   // List varian produk
   List<EditVarianProduk> _varianList = [];
 
@@ -49,6 +53,10 @@ class _EditProdukPageState extends State<EditProdukPage> {
     _deskripsiController.dispose();
     _hargaProdukController.dispose();
     _hargaAwalController.dispose();
+
+    // Bersihkan file video jika ada
+    _videoDemoBaru = null;
+
     super.dispose();
   }
 
@@ -115,6 +123,45 @@ class _EditProdukPageState extends State<EditProdukPage> {
       }
     } catch (e) {
       _showToast('Gagal memilih gambar: $e', type: ToastificationType.error);
+    }
+  }
+
+  // Fungsi untuk memilih video demo
+  Future<void> _pilihVideoDemo() async {
+    try {
+      final XFile? video = await _picker.pickVideo(
+        source: ImageSource.gallery,
+        maxDuration: const Duration(minutes: 5), // Maksimal 5 menit
+      );
+
+      if (video != null) {
+        final file = File(video.path);
+
+        // Validasi ukuran file (maksimal 50MB)
+        final fileSizeInMB = PostUpdateProduk.getFileSizeInMB(file);
+        if (fileSizeInMB > 50) {
+          _showToast(
+            'Video terlalu besar (${fileSizeInMB.toStringAsFixed(1)}MB). Maksimal 50MB.',
+            type: ToastificationType.error,
+          );
+          return;
+        }
+
+        // Validasi format video
+        if (!PostUpdateProduk.isValidVideoFile(file)) {
+          _showToast(
+            'Format video tidak didukung. Gunakan MP4, MOV, atau AVI.',
+            type: ToastificationType.error,
+          );
+          return;
+        }
+
+        setState(() {
+          _videoDemoBaru = file;
+        });
+      }
+    } catch (e) {
+      _showToast('Gagal memilih video: $e', type: ToastificationType.error);
     }
   }
 
@@ -237,13 +284,13 @@ class _EditProdukPageState extends State<EditProdukPage> {
     });
 
     try {
-      // Siapkan data gambar dengan urutan yang benar
-      List<File> gambarList = [];
+      // Siapkan data file dengan urutan yang benar
+      List<File> fileList = []; // Ganti dari gambarList ke fileList
 
       // LANGKAH 1: Tambahkan gambar utama HANYA jika ada yang baru
       bool adaGambarUtamaBaru = _gambarProdukBaru != null;
       if (adaGambarUtamaBaru) {
-        gambarList.add(_gambarProdukBaru!);
+        fileList.add(_gambarProdukBaru!);
         print("🔵 Gambar utama baru ditambahkan ke index 0");
       }
 
@@ -252,12 +299,28 @@ class _EditProdukPageState extends State<EditProdukPage> {
       for (int i = 0; i < _varianList.length; i++) {
         var varian = _varianList[i];
         if (varian.gambarVarianFile != null) {
-          gambarList.add(varian.gambarVarianFile!);
+          fileList.add(varian.gambarVarianFile!);
           varianDenganGambarBaru.add(i);
           print(
-            "🟢 Gambar varian ${varian.warna} ditambahkan ke index ${gambarList.length - 1}",
+            "🟢 Gambar varian ${varian.warna} ditambahkan ke index ${fileList.length - 1}",
           );
         }
+      }
+
+      // LANGKAH 3: Tambahkan video demo jika ada yang baru
+      bool adaVideoDemoBaru = _videoDemoBaru != null;
+      if (adaVideoDemoBaru) {
+        fileList.add(_videoDemoBaru!);
+        print("🟣 Video demo baru ditambahkan ke index ${fileList.length - 1}");
+      }
+
+      // Validasi file sebelum upload
+      final validasi = PostUpdateProduk.validateFiles(fileList);
+      if (!validasi['valid']) {
+        for (String error in validasi['errors']) {
+          _showToast(error, type: ToastificationType.error);
+        }
+        return;
       }
 
       // LANGKAH 3: Convert varian ke format yang dibutuhkan API
@@ -298,7 +361,6 @@ class _EditProdukPageState extends State<EditProdukPage> {
       // Debug logging yang lebih detail
       print("=== DEBUG SUBMIT DETAIL ===");
       print("Ada gambar utama baru: $adaGambarUtamaBaru");
-      print("Total gambar akan diupload: ${gambarList.length}");
       print("Varian dengan gambar baru: ${varianDenganGambarBaru.length}");
 
       for (int i = 0; i < varianData.length; i++) {
@@ -319,9 +381,10 @@ class _EditProdukPageState extends State<EditProdukPage> {
         deskripsi: _deskripsiController.text,
         hargaProduk: _hargaProdukController.text,
         hargaAwal: _hargaAwalController.text,
-        gambarList: gambarList,
+        fileList: fileList, // Ganti dari gambarList ke fileList
         varianList: varianData,
         adaGambarUtamaBaru: adaGambarUtamaBaru,
+        adaVideoDemoBaru: adaVideoDemoBaru, // Tambahkan parameter ini
       );
 
       if (result.success) {
@@ -486,6 +549,114 @@ class _EditProdukPageState extends State<EditProdukPage> {
                             children: [
                               Icon(Icons.add_photo_alternate, size: 48),
                               Text('Tap untuk memilih gambar'),
+                            ],
+                          ),
+                ),
+              ),
+              // Section Video Demo (tambahkan setelah gambar produk utama)
+              const SizedBox(height: 16),
+              const Text(
+                'Video Demo Produk (Opsional)',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              InkWell(
+                onTap: _pilihVideoDemo,
+                child: Container(
+                  height: 120,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child:
+                      _videoDemoBaru != null
+                          ? Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.black12,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.videocam,
+                                    size: 48,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 8,
+                                left: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'Video Baru Dipilih',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                          : _produkDetail?.videoDemo != null &&
+                              _produkDetail!.videoDemo!.isNotEmpty
+                          ? Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.black12,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.play_circle_outline,
+                                    size: 48,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 8,
+                                left: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text(
+                                    'Video Demo Tersedia',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                          : const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.videocam_outlined, size: 48),
+                              Text('Tap untuk memilih video demo'),
+                              Text(
+                                'Maksimal 50MB, format MP4/MOV/AVI',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                ),
+                              ),
                             ],
                           ),
                 ),

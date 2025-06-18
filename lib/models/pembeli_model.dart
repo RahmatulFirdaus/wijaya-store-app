@@ -183,6 +183,7 @@ class GetDataDetailProduk {
   final String deskripsi;
   final String hargaAwal;
   final String harga;
+  final String videoDemo;
   final String linkGambar;
   final String kategoriProduk;
   final List<Varian> varian;
@@ -193,6 +194,7 @@ class GetDataDetailProduk {
     required this.deskripsi,
     required this.harga,
     required this.linkGambar,
+    required this.videoDemo,
     required this.kategoriProduk,
     required this.varian,
     required this.hargaAwal,
@@ -206,6 +208,7 @@ class GetDataDetailProduk {
       deskripsi: json['deskripsi'],
       harga: json['harga'],
       linkGambar: json['link_gambar'],
+      videoDemo: json['video_demo'].toString(),
       kategoriProduk: json['kategori'],
       varian: (json['varian'] as List).map((v) => Varian.fromJson(v)).toList(),
     );

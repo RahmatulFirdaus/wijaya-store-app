@@ -29,6 +29,9 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
   // File gambar utama produk
   File? _gambarProduk;
 
+  // File video demo produk (BARU)
+  File? _videoDemo;
+
   // List varian produk
   List<VarianProduk> _varianList = [];
 
@@ -62,6 +65,46 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
     } catch (e) {
       _showToast('Gagal memilih gambar: $e', type: ToastificationType.error);
     }
+  }
+
+  // Fungsi untuk memilih video demo (BARU)
+  Future<void> _pilihVideoDemo() async {
+    try {
+      final XFile? video = await _picker.pickVideo(
+        source: ImageSource.gallery,
+        maxDuration: const Duration(minutes: 2), // Maksimal 2 menit
+      );
+
+      if (video != null) {
+        // Cek ukuran file video (maksimal 50MB)
+        final file = File(video.path);
+        final fileSizeInBytes = await file.length();
+        final fileSizeInMB = fileSizeInBytes / (1024 * 1024);
+
+        if (fileSizeInMB > 50) {
+          _showToast(
+            'Ukuran video terlalu besar. Maksimal 50MB',
+            type: ToastificationType.error,
+          );
+          return;
+        }
+
+        setState(() {
+          _videoDemo = file;
+        });
+        _showToast('Video demo berhasil dipilih');
+      }
+    } catch (e) {
+      _showToast('Gagal memilih video: $e', type: ToastificationType.error);
+    }
+  }
+
+  // Fungsi untuk menghapus video demo (BARU)
+  void _hapusVideoDemo() {
+    setState(() {
+      _videoDemo = null;
+    });
+    _showToast('Video demo dihapus');
   }
 
   // Fungsi untuk menambah varian baru
@@ -153,7 +196,7 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
         }
       }
 
-      // Kirim data ke server dengan method baru
+      // Kirim data ke server dengan method baru (TERMASUK VIDEO)
       final result = await PostTambahProduk.kirimProduk(
         namaProduk: _namaProdukController.text,
         deskripsi: _deskripsiController.text,
@@ -162,7 +205,8 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
         hargaModal: _hargaModalController.text,
         kategori: _selectedKategori!,
         gambarList: gambarList,
-        varianList: _varianList, // Langsung kirim list VarianProduk
+        varianList: _varianList,
+        videoDemo: _videoDemo, // BARU: Kirim video demo
       );
 
       if (result.success) {
@@ -346,6 +390,85 @@ class _TambahProdukPageState extends State<TambahProdukPage> {
                             children: [
                               Icon(Icons.add_photo_alternate, size: 48),
                               Text('Tap untuk memilih gambar'),
+                            ],
+                          ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Section Video Demo (BARU)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Video Demo (Opsional)',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  if (_videoDemo != null)
+                    IconButton(
+                      onPressed: _hapusVideoDemo,
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      tooltip: 'Hapus video',
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              InkWell(
+                onTap: _videoDemo == null ? _pilihVideoDemo : null,
+                child: Container(
+                  height: 120,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(8),
+                    color: _videoDemo != null ? Colors.green.shade50 : null,
+                  ),
+                  child:
+                      _videoDemo != null
+                          ? Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.video_file,
+                                size: 48,
+                                color: Colors.green,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Video dipilih',
+                                style: TextStyle(
+                                  color: Colors.green.shade700,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Tap tombol hapus untuk mengganti',
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          )
+                          : const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.video_call,
+                                size: 48,
+                                color: Colors.grey,
+                              ),
+                              SizedBox(height: 8),
+                              Text('Tap untuk memilih video demo'),
+                              SizedBox(height: 4),
+                              Text(
+                                'Maksimal 50MB, durasi 2 menit',
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12,
+                                ),
+                              ),
                             ],
                           ),
                 ),

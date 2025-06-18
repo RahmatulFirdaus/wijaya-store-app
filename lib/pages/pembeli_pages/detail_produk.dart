@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/models/pembeli_model.dart';
 import 'package:frontend/pages/pembeli_pages/list_chat_admin.dart';
+import 'package:frontend/pages/pembeli_pages/tampil_video_produk.dart';
 import 'package:toastification/toastification.dart';
 
 const String baseUrl = "http://192.168.1.96:3000/uploads/";
@@ -38,6 +39,23 @@ class _DetailProdukState extends State<DetailProduk> {
       sizes.add(variant.ukuran);
     }
     return sizes.toList()..sort();
+  }
+
+  bool hasValidVideo(String? videoUrl) {
+    if (videoUrl == null || videoUrl.trim().isEmpty) return false;
+    if (videoUrl.trim().toUpperCase() == 'NULL') return false;
+
+    final validExtensions = [
+      '.mp4',
+      '.mov',
+      '.avi',
+      '.mkv',
+      '.webm',
+      '.3gp',
+      '.flv',
+    ];
+    final lowerUrl = videoUrl.toLowerCase();
+    return validExtensions.any((ext) => lowerUrl.contains(ext));
   }
 
   // Format price with Rupiah format
@@ -882,21 +900,55 @@ class _DetailProdukState extends State<DetailProduk> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            TextButton(
-                              onPressed: () {
-                                showDescriptionPopup(
-                                  context,
-                                  product.deskripsi,
-                                  product.namaProduk,
-                                );
-                              },
-                              child: const Text(
-                                'Deskripsi Produk',
-                                style: TextStyle(
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.w500,
+                            Row(
+                              children: [
+                                // Tombol Video Produk - PERBAIKAN
+                                if (hasValidVideo(product.videoDemo)) ...[
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (context) => TampilVideoProduk(
+                                                videoUrl:
+                                                    product
+                                                        .videoDemo!, // Pass video URL
+                                                productName:
+                                                    product
+                                                        .namaProduk, // Pass product name
+                                              ),
+                                        ),
+                                      );
+                                    },
+                                    child: const Text(
+                                      'Video Produk',
+                                      style: TextStyle(
+                                        color: Colors.blue,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                  const Text(' • '),
+                                ],
+                                // Tombol Deskripsi Produk
+                                TextButton(
+                                  onPressed: () {
+                                    showDescriptionPopup(
+                                      context,
+                                      product.deskripsi,
+                                      product.namaProduk,
+                                    );
+                                  },
+                                  child: const Text(
+                                    'Deskripsi Produk',
+                                    style: TextStyle(
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
                           ],
                         ),

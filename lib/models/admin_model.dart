@@ -1202,6 +1202,7 @@ class PostTambahProduk {
     required String kategori,
     required List<File> gambarList, // gambarUtama + gambar varian
     required List<VarianProduk> varianList,
+    File? videoDemo, // TAMBAHAN: Video demo (opsional)
   }) async {
     final url = Uri.parse('http://192.168.1.96:3000/api/adminTambahProduk');
 
@@ -1225,15 +1226,26 @@ class PostTambahProduk {
       for (File file in gambarList) {
         final mimeType = lookupMimeType(file.path) ?? 'image/jpeg';
         final multipartFile = await http.MultipartFile.fromPath(
-          'link_gambar', // sesuai backend (req.files)
+          'files', // UBAH: sesuai dengan backend yang baru (upload.array('files'))
           file.path,
           contentType: MediaType.parse(mimeType),
         );
         request.files.add(multipartFile);
       }
 
+      // TAMBAHAN: Upload video demo jika ada
+      if (videoDemo != null) {
+        final mimeType = lookupMimeType(videoDemo.path) ?? 'video/mp4';
+        final videoFile = await http.MultipartFile.fromPath(
+          'files', // Menggunakan field yang sama dengan gambar
+          videoDemo.path,
+          contentType: MediaType.parse(mimeType),
+        );
+        request.files.add(videoFile);
+      }
+
       final response = await request.send().timeout(
-        const Duration(seconds: 10),
+        const Duration(seconds: 30), // UBAH: Naikkan timeout untuk video
         onTimeout: () {
           throw Exception('Koneksi timeout. Periksa koneksi internet Anda.');
         },
@@ -1346,6 +1358,7 @@ class DataDetailProduk {
   final String hargaAwal;
   final String linkGambar;
   final String kategori;
+  final String? videoDemo; // TAMBAHAN: Field untuk video demo
   final List varian;
 
   DataDetailProduk({
@@ -1356,6 +1369,7 @@ class DataDetailProduk {
     required this.hargaAwal,
     required this.linkGambar,
     required this.kategori,
+    this.videoDemo, // TAMBAHAN: Video demo bersifat opsional
     required this.varian,
   });
 
@@ -1371,6 +1385,8 @@ class DataDetailProduk {
       hargaAwal: produk['harga_awal'],
       linkGambar: produk['link_gambar'],
       kategori: produk['kategori'],
+      videoDemo:
+          produk['video_demo'], // TAMBAHAN: Ambil video demo dari response
       varian: varianList.map((v) => DataVarianProduk.fromJson(v)).toList(),
     );
   }
@@ -1398,8 +1414,9 @@ class DataDetailProduk {
 class PostUpdateProduk {
   final String pesan;
   final bool success;
+  final Map<String, dynamic>? data;
 
-  PostUpdateProduk({required this.pesan, this.success = true});
+  PostUpdateProduk({required this.pesan, this.success = true, this.data});
 
   static Future<PostUpdateProduk> kirimUpdateProduk({
     required String id,
@@ -1407,22 +1424,23 @@ class PostUpdateProduk {
     required String deskripsi,
     required String hargaProduk,
     required String hargaAwal,
-    required List<File> gambarList,
+    required List<File> fileList, // Ubah dari gambarList ke fileList
     required List<Map<String, dynamic>> varianList,
-    bool adaGambarUtamaBaru = false, // Parameter tambahan
+    bool adaGambarUtamaBaru = false,
+    bool adaVideoDemoBaru = false, // Parameter baru untuk video
   }) async {
     final url = Uri.parse('http://192.168.1.96:3000/api/adminUpdateProduk/$id');
 
     try {
       final request = http.MultipartRequest('PUT', url);
 
+      // Set fields
       request.fields['nama_produk'] = namaProduk;
       request.fields['deskripsi'] = deskripsi;
       request.fields['harga_produk'] = hargaProduk;
       request.fields['harga_awal'] = hargaAwal;
-
-      // PERBAIKAN: Tambahkan informasi ada gambar utama baru atau tidak
       request.fields['ada_gambar_utama_baru'] = adaGambarUtamaBaru.toString();
+      request.fields['ada_video_demo_baru'] = adaVideoDemoBaru.toString();
       request.fields['varian'] = jsonEncode(varianList);
 
       print("🟡 Kirim field:");
@@ -1431,35 +1449,104 @@ class PostUpdateProduk {
       print("harga_produk: $hargaProduk");
       print("harga_awal: $hargaAwal");
       print("ada_gambar_utama_baru: $adaGambarUtamaBaru");
+      print("ada_video_demo_baru: $adaVideoDemoBaru");
       print("varianList (encoded): ${jsonEncode(varianList)}");
 
-      // PERBAIKAN: Upload gambar dengan detail logging
-      for (int i = 0; i < gambarList.length; i++) {
-        var file = gambarList[i];
+      // Pisahkan file berdasarkan tipe
+      List<File> imageFiles = [];
+      List<File> videoFiles = [];
+
+      for (var file in fileList) {
+        final mimeType = lookupMimeType(file.path) ?? '';
+        if (mimeType.startsWith('image/')) {
+          imageFiles.add(file);
+        } else if (mimeType.startsWith('video/')) {
+          videoFiles.add(file);
+        }
+      }
+
+      print("📊 Analisis Files:");
+      print("Total files: ${fileList.length}");
+      print("Image files: ${imageFiles.length}");
+      print("Video files: ${videoFiles.length}");
+
+      // Upload semua files dengan field name 'files' (sesuai backend)
+      int fileIndex = 0;
+
+      // Upload gambar utama jika ada
+      if (adaGambarUtamaBaru && imageFiles.isNotEmpty) {
+        var file = imageFiles[0];
         final mimeType = lookupMimeType(file.path) ?? 'image/jpeg';
         final multipartFile = await http.MultipartFile.fromPath(
-          'link_gambar',
+          'files', // Ubah field name sesuai backend
           file.path,
           contentType: MediaType.parse(mimeType),
           filename: file.path.split('/').last,
         );
 
-        String jenisGambar;
-        if (i == 0 && adaGambarUtamaBaru) {
-          jenisGambar = "GAMBAR UTAMA";
-        } else {
-          int varianIndex = adaGambarUtamaBaru ? i - 1 : i;
-          jenisGambar = "GAMBAR VARIAN ${varianIndex + 1}";
-        }
-
         print(
-          "🟢 Upload [$jenisGambar] index $i: ${file.path.split('/').last}",
+          "🟢 Upload [GAMBAR UTAMA] index $fileIndex: ${file.path.split('/').last}",
         );
         request.files.add(multipartFile);
+        fileIndex++;
       }
 
+      // Upload gambar varian
+      int varianImageIndex = adaGambarUtamaBaru ? 1 : 0;
+      int varianImageCount = 0;
+
+      // Hitung berapa gambar varian yang dibutuhkan
+      for (var varian in varianList) {
+        if (varian['has_new_image'] == true) {
+          varianImageCount++;
+        }
+      }
+
+      // Upload gambar varian sesuai kebutuhan
+      for (
+        int i = 0;
+        i < varianImageCount && varianImageIndex < imageFiles.length;
+        i++
+      ) {
+        var file = imageFiles[varianImageIndex];
+        final mimeType = lookupMimeType(file.path) ?? 'image/jpeg';
+        final multipartFile = await http.MultipartFile.fromPath(
+          'files', // Ubah field name sesuai backend
+          file.path,
+          contentType: MediaType.parse(mimeType),
+          filename: file.path.split('/').last,
+        );
+
+        print(
+          "🟢 Upload [GAMBAR VARIAN ${i + 1}] index $fileIndex: ${file.path.split('/').last}",
+        );
+        request.files.add(multipartFile);
+        fileIndex++;
+        varianImageIndex++;
+      }
+
+      // Upload video demo jika ada
+      if (adaVideoDemoBaru && videoFiles.isNotEmpty) {
+        var file = videoFiles[0];
+        final mimeType = lookupMimeType(file.path) ?? 'video/mp4';
+        final multipartFile = await http.MultipartFile.fromPath(
+          'files', // Ubah field name sesuai backend
+          file.path,
+          contentType: MediaType.parse(mimeType),
+          filename: file.path.split('/').last,
+        );
+
+        print(
+          "🟢 Upload [VIDEO DEMO] index $fileIndex: ${file.path.split('/').last}",
+        );
+        request.files.add(multipartFile);
+        fileIndex++;
+      }
+
+      print("📤 Total files yang diupload: ${request.files.length}");
+
       final response = await request.send().timeout(
-        const Duration(seconds: 30), // Extend timeout
+        const Duration(seconds: 60), // Extend timeout untuk video
         onTimeout: () {
           throw Exception('Koneksi timeout. Periksa koneksi internet Anda.');
         },
@@ -1484,6 +1571,7 @@ class PostUpdateProduk {
         return PostUpdateProduk(
           pesan: data['pesan'] ?? 'Produk berhasil diperbarui.',
           success: true,
+          data: data['data'],
         );
       } else {
         print("❌ Gagal update. Pesan: ${data['pesan']}");
@@ -1501,6 +1589,7 @@ class PostUpdateProduk {
     } catch (e) {
       print("❌ Exception saat kirimUpdateProduk: $e");
       String errorMessage = 'Terjadi kesalahan tidak terduga.';
+
       if (e.toString().contains('SocketException')) {
         errorMessage =
             'Tidak dapat terhubung ke server. Periksa koneksi internet.';
@@ -1508,11 +1597,82 @@ class PostUpdateProduk {
         errorMessage = 'Koneksi timeout. Coba lagi nanti.';
       } else if (e.toString().contains('FormatException')) {
         errorMessage = 'Format data tidak valid.';
+      } else if (e.toString().contains('ClientException')) {
+        errorMessage = 'Kesalahan koneksi ke server.';
       }
 
       return PostUpdateProduk(pesan: errorMessage, success: false);
     }
   }
+
+  // Helper method untuk validasi file
+  static bool isValidImageFile(File file) {
+    final mimeType = lookupMimeType(file.path) ?? '';
+    return mimeType.startsWith('image/') &&
+        (mimeType.contains('jpeg') || mimeType.contains('png'));
+  }
+
+  static bool isValidVideoFile(File file) {
+    final mimeType = lookupMimeType(file.path) ?? '';
+    return mimeType.startsWith('video/') &&
+        (mimeType.contains('mp4') ||
+            mimeType.contains('quicktime') ||
+            mimeType.contains('x-msvideo'));
+  }
+
+  // Helper method untuk mendapatkan ukuran file dalam MB
+  static double getFileSizeInMB(File file) {
+    int bytes = file.lengthSync();
+    return bytes / (1024 * 1024);
+  }
+
+  // Method untuk validasi sebelum upload
+  static Map<String, dynamic> validateFiles(List<File> fileList) {
+    List<String> errors = [];
+    double totalSize = 0;
+
+    for (var file in fileList) {
+      double fileSizeInMB = getFileSizeInMB(file);
+      totalSize += fileSizeInMB;
+
+      // Validasi tipe file
+      if (!isValidImageFile(file) && !isValidVideoFile(file)) {
+        errors.add(
+          'File ${file.path.split('/').last} tidak didukung. Hanya JPEG, PNG, MP4, MOV, AVI yang diizinkan.',
+        );
+      }
+
+      // Validasi ukuran file
+      if (fileSizeInMB > 50) {
+        errors.add(
+          'File ${file.path.split('/').last} terlalu besar (${fileSizeInMB.toStringAsFixed(1)}MB). Maksimal 50MB.',
+        );
+      }
+    }
+
+    // Validasi total ukuran
+    if (totalSize > 200) {
+      errors.add(
+        'Total ukuran file terlalu besar (${totalSize.toStringAsFixed(1)}MB). Maksimal 200MB.',
+      );
+    }
+
+    return {
+      'valid': errors.isEmpty,
+      'errors': errors,
+      'totalSizeMB': totalSize,
+    };
+  }
+}
+
+// Extension untuk kemudahan penggunaan
+extension PostUpdateProdukExtension on PostUpdateProduk {
+  bool get isSuccess => success;
+  bool get isFailure => !success;
+
+  String get message => pesan;
+
+  Map<String, dynamic>? get responseData => data;
 }
 
 //khusus gaji karyawan
