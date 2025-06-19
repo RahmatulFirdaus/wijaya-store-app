@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/models/pembeli_model.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+LatLng? _lokasiPengirim;
 
 class Pengiriman extends StatefulWidget {
   final String orderId; // Add order ID parameter
@@ -35,6 +40,36 @@ class _PengirimanState extends State<Pengiriman>
     _fetchStatus();
   }
 
+  Future<void> _fetchLokasiPengirim() async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          'http://192.168.1.96:3000/api/get-location/${widget.orderId}',
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['lat'] != null && data['lng'] != null) {
+          final lat = double.tryParse(data['lat'].toString());
+          final lng = double.tryParse(data['lng'].toString());
+
+          if (lat != null && lng != null) {
+            if (mounted) {
+              setState(() {
+                _lokasiPengirim = LatLng(lat, lng);
+              });
+            }
+          }
+        }
+      } else {
+        debugPrint('Gagal ambil lokasi, status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Gagal ambil lokasi pengirim: $e');
+    }
+  }
+
   @override
   void dispose() {
     _animationController.dispose();
@@ -49,6 +84,10 @@ class _PengirimanState extends State<Pengiriman>
         _isLoading = false;
       });
       _animationController.forward();
+
+      if (status.status.toLowerCase() == 'dikirim') {
+        _fetchLokasiPengirim();
+      }
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -310,6 +349,41 @@ class _PengirimanState extends State<Pengiriman>
                                 ),
                               ),
                             ),
+                            if (_statusPengiriman!.status.toLowerCase() ==
+                                    'dikirim' &&
+                                _lokasiPengirim != null) ...[
+                              const SizedBox(height: 32),
+                              Container(
+                                height: 200,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.grey[300]!),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: GoogleMap(
+                                    initialCameraPosition: CameraPosition(
+                                      target: _lokasiPengirim!,
+                                      zoom: 15,
+                                    ),
+                                    markers: {
+                                      Marker(
+                                        markerId: const MarkerId('pengirim'),
+                                        position: _lokasiPengirim!,
+                                        infoWindow: const InfoWindow(
+                                          title: 'Kurir',
+                                        ),
+                                      ),
+                                    },
+                                    myLocationEnabled: false,
+                                    myLocationButtonEnabled: false,
+                                    zoomControlsEnabled: false,
+                                    onMapCreated:
+                                        (GoogleMapController controller) {},
+                                  ),
+                                ),
+                              ),
+                            ],
                             const Spacer(flex: 3),
                             SizedBox(
                               width: double.infinity,

@@ -16,6 +16,7 @@ import 'package:frontend/pages/admin_pages/pages/admin_mix_online_offline/admin_
 import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/admin_ulasan_produk.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/manajemen_pesanan_produk/manajemen_pesanan_produk.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/pembayaran_online/admin_lobby_pembayaran_online.dart';
+import 'package:frontend/pages/admin_pages/pages/admin_pengiriman/admin_pengiriman.dart';
 
 class MainAdmin extends StatefulWidget {
   const MainAdmin({super.key});
@@ -264,6 +265,21 @@ class _MainAdminState extends State<MainAdmin> {
             ),
             onTap:
                 (context) => _navigateToPage(context, const PengirimanPage()),
+          ),
+          AdminMenuItem(
+            title: 'Setting Pengantaran',
+            icon: Icons.local_shipping_rounded,
+            color: const Color(0xFFFF7043), // oranye terang
+            gradient: const LinearGradient(
+              colors: [
+                Color(0xFFFF7043),
+                Color(0xFFFF5722),
+              ], // gradasi oranye ke merah
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            onTap:
+                (context) => _navigateToPage(context, const AdminPengiriman()),
           ),
         ],
       ),

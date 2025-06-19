@@ -7,6 +7,36 @@ import 'package:mime/mime.dart';
 import 'dart:async';
 
 //CLASS GET
+class IDOrderan {
+  final int id;
+  final String statusPengiriman;
+
+  IDOrderan({required this.id, required this.statusPengiriman});
+
+  factory IDOrderan.fromJson(Map<String, dynamic> json) {
+    return IDOrderan(
+      id: json['id'],
+      statusPengiriman: json['status_pengiriman'],
+    );
+  }
+
+  static Future<List<IDOrderan>> fetchIDOrderan() async {
+    final url = Uri.parse('http://192.168.1.96:3000/api/getIDOrderan');
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        final List dataList = body['data'];
+        return dataList.map((e) => IDOrderan.fromJson(e)).toList();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      throw Exception('Gagal mengambil data ID orderan: $e');
+    }
+  }
+}
+
 class PendingUser {
   final int id;
   final String username;

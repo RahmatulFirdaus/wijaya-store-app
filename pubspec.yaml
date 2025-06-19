@@ -33,8 +33,10 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_secure_storage: ^9.2.4
+  geolocator: ^14.0.1
   get: ^4.7.2
   google_fonts: ^6.2.1
+  google_maps_flutter: ^2.12.3
   http_parser: ^4.1.2
   image_picker: ^1.1.2
   intl: ^0.20.2
