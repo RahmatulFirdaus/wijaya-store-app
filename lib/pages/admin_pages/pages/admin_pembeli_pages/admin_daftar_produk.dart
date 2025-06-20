@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:frontend/models/pembeli_model.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/daftar_produk/edit_produk_page.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/daftar_produk/tambah_produk_page.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class DaftarProdukPage extends StatefulWidget {
   const DaftarProdukPage({super.key});
@@ -107,6 +110,154 @@ class _DaftarProdukPageState extends State<DaftarProdukPage> {
     }
   }
 
+  Future<void> generateAllProductPDF(BuildContext context) async {
+    try {
+      final pdf = pw.Document();
+      final produkList = await Produk.getDataSemuaProduk();
+
+      // Tambahkan halaman ke PDF
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
+          build: (pw.Context context) {
+            List<pw.Widget> content = [];
+
+            // Header
+            content.add(
+              pw.Text(
+                'LAPORAN DATA SEMUA PRODUK',
+                style: const pw.TextStyle(fontSize: 20),
+                textAlign: pw.TextAlign.center,
+              ),
+            );
+            content.add(pw.SizedBox(height: 20));
+            content.add(pw.Divider(thickness: 2));
+            content.add(pw.SizedBox(height: 20));
+
+            // Loop untuk setiap produk
+            for (int i = 0; i < produkList.length; i++) {
+              final produk = produkList[i];
+
+              content.add(
+                pw.Container(
+                  width: double.infinity,
+                  padding: const pw.EdgeInsets.all(12),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.grey200,
+                    border: pw.Border.all(color: PdfColors.black),
+                  ),
+                  child: pw.Text(
+                    '${i + 1}. ${produk.namaProduk}',
+                    style: const pw.TextStyle(fontSize: 16),
+                  ),
+                ),
+              );
+              content.add(pw.SizedBox(height: 8));
+
+              content.add(pw.Text('Deskripsi: ${produk.deskripsi}'));
+              content.add(pw.SizedBox(height: 4));
+
+              content.add(pw.Text('Harga: ${produk.harga}'));
+              content.add(pw.SizedBox(height: 8));
+
+              content.add(
+                pw.Text(
+                  'Varian Produk:',
+                  style: const pw.TextStyle(fontSize: 12),
+                ),
+              );
+              content.add(pw.SizedBox(height: 4));
+
+              // Tabel Varian
+              content.add(
+                pw.Table(
+                  border: pw.TableBorder.all(color: PdfColors.black, width: 1),
+                  columnWidths: {
+                    0: const pw.FlexColumnWidth(2),
+                    1: const pw.FlexColumnWidth(3),
+                    2: const pw.FlexColumnWidth(2),
+                  },
+                  children: [
+                    // Header tabel
+                    pw.TableRow(
+                      decoration: const pw.BoxDecoration(
+                        color: PdfColors.grey100,
+                      ),
+                      children: [
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text('Ukuran'),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text('Warna'),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text('Stok'),
+                        ),
+                      ],
+                    ),
+                    // Data varian
+                    ...produk.varian.map((varian) {
+                      return pw.TableRow(
+                        children: [
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(8),
+                            child: pw.Text(varian.ukuran.toString()),
+                          ),
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(8),
+                            child: pw.Text(varian.warna),
+                          ),
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(8),
+                            child: pw.Text(varian.stok.toString()),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ],
+                ),
+              );
+
+              content.add(pw.SizedBox(height: 20));
+
+              // Divider antar produk
+              if (i < produkList.length - 1) {
+                content.add(pw.Divider());
+                content.add(pw.SizedBox(height: 15));
+              }
+            }
+
+            // Footer
+            content.add(pw.Spacer());
+            content.add(pw.Divider());
+            content.add(pw.SizedBox(height: 8));
+            content.add(
+              pw.Text(
+                'Dibuat pada: ${DateTime.now().toString().split('.')[0]}',
+                style: const pw.TextStyle(fontSize: 8),
+                textAlign: pw.TextAlign.center,
+              ),
+            );
+
+            return content;
+          },
+        ),
+      );
+
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdf.save(),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal membuat PDF: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -155,29 +306,56 @@ class _DaftarProdukPageState extends State<DaftarProdukPage> {
                   "DAFTAR PRODUK",
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    // Navigate to add product page
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const TambahProdukPage(),
+                Row(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        // Arahkan ke halaman Tambah Produk
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const TambahProdukPage(),
+                          ),
+                        ).then((_) => _refreshProducts());
+                      },
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Tambah'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                    ).then((_) => _refreshProducts());
-                  },
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Tambah'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                    const SizedBox(width: 8), // Jarak antar tombol
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        // Cetak semua produk jadi PDF
+                        final products = await _productsFuture;
+                        for (final product in products) {
+                          await generateAllProductPDF(context);
+                        }
+                      },
+                      icon: const Icon(Icons.picture_as_pdf, size: 18),
+                      label: const Text('PDF'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ],
             ),

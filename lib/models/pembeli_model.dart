@@ -1224,3 +1224,59 @@ class CekKomentarService {
     }
   }
 }
+
+class VarianKhusus {
+  final int ukuran;
+  final String warna;
+  final int stok;
+
+  VarianKhusus({required this.ukuran, required this.warna, required this.stok});
+
+  factory VarianKhusus.fromJson(Map<String, dynamic> json) {
+    return VarianKhusus(
+      ukuran: int.parse(json['ukuran'].toString()),
+      warna: json['warna'],
+      stok: int.parse(json['stok'].toString()),
+    );
+  }
+}
+
+class Produk {
+  final String namaProduk;
+  final String deskripsi;
+  final String harga;
+  final List<VarianKhusus> varian;
+
+  Produk({
+    required this.namaProduk,
+    required this.deskripsi,
+    required this.harga,
+    required this.varian,
+  });
+
+  factory Produk.fromJson(Map<String, dynamic> json) {
+    return Produk(
+      namaProduk: json['nama_produk'],
+      deskripsi: json['deskripsi'],
+      harga: json['harga'],
+      varian:
+          (json['varian'] as List)
+              .map((v) => VarianKhusus.fromJson(v))
+              .toList(),
+    );
+  }
+
+  static Future<List<Produk>> getDataSemuaProduk() async {
+    Uri url = Uri.parse("http://192.168.1.96:3000/api/tampilSemuaProduk");
+    var response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      var jsonData = jsonDecode(response.body);
+      List<dynamic> dataList = jsonData["data"];
+
+      return dataList.map((item) => Produk.fromJson(item)).toList();
+    } else {
+      throw Exception("Gagal mengambil data semua produk");
+    }
+  }
+}

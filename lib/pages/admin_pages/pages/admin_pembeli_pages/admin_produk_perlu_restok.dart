@@ -278,6 +278,7 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
           'PRODUK RESTOK',
           style: TextStyle(
             fontSize: 16,
+            color: Colors.white,
             fontWeight: FontWeight.w700,
             letterSpacing: 1.5,
           ),

@@ -17,6 +17,60 @@ import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/admin_ulasa
 import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/manajemen_pesanan_produk/manajemen_pesanan_produk.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/pembayaran_online/admin_lobby_pembayaran_online.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_pengiriman/admin_pengiriman.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+class ProdukPerluRestok {
+  String namaProduk;
+  String linkGambarVarian;
+  String warna;
+  int ukuran;
+  int stok;
+
+  ProdukPerluRestok({
+    required this.namaProduk,
+    required this.linkGambarVarian,
+    required this.warna,
+    required this.ukuran,
+    required this.stok,
+  });
+
+  static Future<List<ProdukPerluRestok>> getDataProdukPerluRestok() async {
+    final url = Uri.parse(
+      'http://192.168.1.96:3000/api/adminTampilProdukPerluRestok',
+    );
+
+    try {
+      final hasilResponse = await http.get(
+        url,
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (hasilResponse.statusCode == 200 || hasilResponse.statusCode == 201) {
+        final List<dynamic> data = jsonDecode(hasilResponse.body)['data'];
+        return data.map((item) {
+          return ProdukPerluRestok(
+            namaProduk: item['nama_produk'].toString(),
+            linkGambarVarian: item['link_gambar_varian'].toString(),
+            warna: item['warna'].toString(),
+            ukuran:
+                item['ukuran'] is int
+                    ? item['ukuran']
+                    : int.tryParse(item['ukuran'].toString()) ?? 0,
+            stok:
+                item['stok'] is int
+                    ? item['stok']
+                    : int.tryParse(item['stok'].toString()) ?? 0,
+          );
+        }).toList();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      throw Exception('Gagal memuat data produk perlu restok: $e');
+    }
+  }
+}
 
 class MainAdmin extends StatefulWidget {
   const MainAdmin({super.key});
@@ -29,6 +83,8 @@ class _MainAdminState extends State<MainAdmin> {
   final TextEditingController _searchTextController = TextEditingController();
   bool _isSearchVisible = false;
   String _searchQuery = '';
+  int _restockCount = 0;
+  bool _isLoadingRestockData = true;
 
   // Organized menu items by categories
   late List<MenuCategory> _menuCategories;
@@ -52,10 +108,70 @@ class _MainAdminState extends State<MainAdmin> {
   @override
   void initState() {
     super.initState();
+    _loadRestockData();
     _initializeMenuCategories();
   }
 
+  Future<void> _loadRestockData() async {
+    try {
+      final products = await ProdukPerluRestok.getDataProdukPerluRestok();
+      setState(() {
+        _restockCount = products.length;
+        _isLoadingRestockData = false;
+      });
+      // Reinitialize menu categories with updated restock count
+      _initializeMenuCategories();
+    } catch (e) {
+      setState(() {
+        _restockCount = 0;
+        _isLoadingRestockData = false;
+      });
+      _initializeMenuCategories();
+    }
+  }
+
+  // Get color and gradient based on restock count
+  Map<String, dynamic> _getRestockStyle() {
+    if (_restockCount == 0) {
+      return {
+        'color': const Color(0xFF4CAF50),
+        'gradient': const LinearGradient(
+          colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        'isUrgent': false,
+        'statusText': 'Stok Aman',
+      };
+    } else if (_restockCount <= 5) {
+      return {
+        'color': const Color(0xFFFF9800),
+        'gradient': const LinearGradient(
+          colors: [Color(0xFFFF9800), Color(0xFFFFB74D)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        'isUrgent': false,
+        'statusText': '$_restockCount Item', // Changed from "Produk" to "Item"
+      };
+    } else {
+      return {
+        'color': const Color(0xFFE53E3E),
+        'gradient': const LinearGradient(
+          colors: [Color(0xFFE53E3E), Color(0xFFFF6B6B)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        'isUrgent': true,
+        // Use shorter format for large numbers
+        'statusText': _restockCount > 99 ? '99+ Item' : '$_restockCount Item',
+      };
+    }
+  }
+
   void _initializeMenuCategories() {
+    final restockStyle = _getRestockStyle();
+
     _menuCategories = [
       // Karyawan Management
       MenuCategory(
@@ -123,13 +239,13 @@ class _MainAdminState extends State<MainAdmin> {
           AdminMenuItem(
             title: 'Produk Perlu Restok',
             icon: Icons.warning_amber_rounded,
-            color: const Color(0xFFE53E3E),
-            gradient: const LinearGradient(
-              colors: [Color(0xFFE53E3E), Color(0xFFFF6B6B)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            isUrgent: true,
+            color: restockStyle['color'],
+            gradient: restockStyle['gradient'],
+            isUrgent: restockStyle['isUrgent'],
+            notificationCount: _restockCount,
+            notificationText: restockStyle['statusText'],
+            showNotification: true,
+            isLoading: _isLoadingRestockData,
             onTap:
                 (context) => _navigateToPage(context, const ProdukRestokPage()),
           ),
@@ -274,7 +390,7 @@ class _MainAdminState extends State<MainAdmin> {
               colors: [
                 Color(0xFFFF7043),
                 Color(0xFFFF5722),
-              ], // gradasi oranye ke merah
+              ], // gradasi oranje ke merah
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -594,6 +710,10 @@ class AdminMenuItem {
   final String? subtitle;
   final bool isUrgent;
   final Function(BuildContext) onTap;
+  final bool showNotification;
+  final int? notificationCount;
+  final String? notificationText;
+  final bool isLoading;
 
   AdminMenuItem({
     required this.title,
@@ -603,6 +723,10 @@ class AdminMenuItem {
     this.subtitle,
     this.isUrgent = false,
     required this.onTap,
+    this.showNotification = false,
+    this.notificationCount,
+    this.notificationText,
+    this.isLoading = false,
   });
 }
 
@@ -640,6 +764,7 @@ class AdminMenuCard extends StatelessWidget {
             padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -650,9 +775,21 @@ class AdminMenuCard extends StatelessWidget {
                         color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: Icon(item.icon, color: Colors.white, size: 28),
+                      child:
+                          item.isLoading
+                              ? const SizedBox(
+                                width: 28,
+                                height: 28,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                              : Icon(item.icon, color: Colors.white, size: 28),
                     ),
-                    if (item.isUrgent)
+                    if (item.isUrgent && !item.isLoading)
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -673,31 +810,105 @@ class AdminMenuCard extends StatelessWidget {
                       ),
                   ],
                 ),
-                const Spacer(),
-                Text(
-                  item.title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    height: 1.3,
+                Flexible(
+                  // Add Flexible here to prevent overflow
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min, // Add this
+                    children: [
+                      Text(
+                        item.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          height: 1.3,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (item.subtitle != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          item.subtitle!,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withOpacity(0.8),
+                            height: 1.2,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      if (item.showNotification && !item.isLoading) ...[
+                        const SizedBox(height: 6), // Reduced from 8
+                        Flexible(
+                          // Wrap notification in Flexible
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10, // Reduced from 12
+                              vertical: 4, // Reduced from 6
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  item.notificationCount == 0
+                                      ? Icons.check_circle_outline
+                                      : Icons.info_outline,
+                                  color: Colors.white,
+                                  size: 12, // Reduced from 14
+                                ),
+                                const SizedBox(width: 4), // Reduced from 6
+                                Flexible(
+                                  child: Text(
+                                    item.notificationText ?? '',
+                                    style: const TextStyle(
+                                      fontSize: 11, // Reduced from 12
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (item.isLoading) ...[
+                        const SizedBox(height: 6), // Reduced from 8
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10, // Reduced from 12
+                            vertical: 4, // Reduced from 6
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text(
+                            'Memuat...',
+                            style: TextStyle(
+                              fontSize: 11, // Reduced from 12
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
-                if (item.subtitle != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    item.subtitle!,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.white.withOpacity(0.8),
-                      height: 1.2,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
               ],
             ),
           ),
