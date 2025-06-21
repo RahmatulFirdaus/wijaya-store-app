@@ -104,26 +104,50 @@ class _InvoiceState extends State<Invoice> with TickerProviderStateMixin {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        'Pelanggan:',
-                        style: pw.TextStyle(
-                          fontSize: 12,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.grey700,
+                  pw.Expanded(
+                    flex: 2,
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'Pelanggan:',
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.grey700,
+                          ),
                         ),
-                      ),
-                      pw.SizedBox(height: 6),
-                      pw.Text(
-                        faktur.namaPengguna,
-                        style: pw.TextStyle(
-                          fontSize: 16,
-                          fontWeight: pw.FontWeight.normal,
+                        pw.SizedBox(height: 6),
+                        pw.Text(
+                          faktur.namaPengguna,
+                          style: pw.TextStyle(
+                            fontSize: 16,
+                            fontWeight: pw.FontWeight.normal,
+                          ),
                         ),
-                      ),
-                    ],
+                        pw.SizedBox(height: 16),
+                        pw.Text(
+                          'Alamat Pengiriman:',
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.grey700,
+                          ),
+                        ),
+                        pw.SizedBox(height: 6),
+                        pw.Container(
+                          width: 200,
+                          child: pw.Text(
+                            faktur.alamatPengiriman,
+                            style: pw.TextStyle(
+                              fontSize: 14,
+                              fontWeight: pw.FontWeight.normal,
+                            ),
+                            maxLines: 4,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
@@ -627,7 +651,14 @@ class _InvoiceState extends State<Invoice> with TickerProviderStateMixin {
                       ),
                     ],
                   ),
-
+                  const SizedBox(height: 16),
+                  _buildInfoCard(
+                    icon: Icons.location_on_outlined,
+                    title: 'Alamat Pengiriman',
+                    value: faktur.alamatPengiriman,
+                    color: const Color(0xFF8B5CF6),
+                    isFullWidth: true,
+                  ),
                   const SizedBox(height: 24),
 
                   // Items Header
@@ -793,8 +824,10 @@ class _InvoiceState extends State<Invoice> with TickerProviderStateMixin {
     required String title,
     required String value,
     required Color color,
+    bool isFullWidth = false,
   }) {
     return Container(
+      width: isFullWidth ? double.infinity : null,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
@@ -829,8 +862,8 @@ class _InvoiceState extends State<Invoice> with TickerProviderStateMixin {
               fontWeight: FontWeight.bold,
               color: Color(0xFF1E293B),
             ),
+            maxLines: isFullWidth ? 3 : 2,
             overflow: TextOverflow.ellipsis,
-            maxLines: 2,
           ),
         ],
       ),

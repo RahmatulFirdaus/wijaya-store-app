@@ -542,6 +542,10 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
             type: ToastificationType.success,
           );
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => LoginPage()),
+          );
         } else {
           // Show error message from API
           toastification.show(
