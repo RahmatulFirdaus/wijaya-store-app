@@ -108,128 +108,292 @@ class _IzinKaryawanPageState extends State<IzinKaryawanPage> {
   Future<void> _generatePDF() async {
     final pdf = pw.Document();
 
+    // Custom colors
+    final primaryColor = PdfColor.fromHex('#1a1a1a');
+    final accentColor = PdfColor.fromHex('#4f46e5');
+    final lightGray = PdfColor.fromHex('#f8fafc');
+    final mediumGray = PdfColor.fromHex('#e2e8f0');
+    final darkGray = PdfColor.fromHex('#64748b');
+
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        build: (pw.Context context) {
-          return [
-            pw.Header(
-              level: 0,
-              child: pw.Text(
-                'LAPORAN AJUAN IZIN KARYAWAN',
-                style: pw.TextStyle(
-                  fontSize: 18,
-                  fontWeight: pw.FontWeight.bold,
-                ),
+        margin: const pw.EdgeInsets.all(40),
+        header: (pw.Context context) {
+          return pw.Container(
+            padding: const pw.EdgeInsets.only(bottom: 20),
+            decoration: const pw.BoxDecoration(
+              border: pw.Border(
+                bottom: pw.BorderSide(color: PdfColors.grey300, width: 1),
               ),
             ),
-            pw.SizedBox(height: 20),
-            pw.Table(
-              border: pw.TableBorder.all(color: PdfColors.grey400),
-              columnWidths: {
-                0: const pw.FlexColumnWidth(0.5),
-                1: const pw.FlexColumnWidth(1.5),
-                2: const pw.FlexColumnWidth(1),
-                3: const pw.FlexColumnWidth(2),
-                4: const pw.FlexColumnWidth(1),
-                5: const pw.FlexColumnWidth(1),
-                6: const pw.FlexColumnWidth(1),
-              },
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                // Header
-                pw.TableRow(
-                  decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        'No',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                      ),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        'Nama',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                      ),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        'Tipe Izin',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                      ),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        'Deskripsi',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                      ),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        'Tanggal Mulai',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                      ),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        'Tanggal Akhir',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                      ),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        'Status',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                    pw.Text(
+                      'LAPORAN AJUAN IZIN KARYAWAN',
+                      style: pw.TextStyle(
+                        fontSize: 24,
+                        fontWeight: pw.FontWeight.bold,
+                        color: primaryColor,
                       ),
                     ),
                   ],
                 ),
-                // Data rows
-                ...dataIzin.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final izin = entry.value;
-                  return pw.TableRow(
-                    children: [
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text('${index + 1}'),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      'Tanggal Laporan',
+                      style: pw.TextStyle(fontSize: 10, color: darkGray),
+                    ),
+                    pw.Text(
+                      DateTime.now().toString().split(' ')[0],
+                      style: pw.TextStyle(
+                        fontSize: 12,
+                        fontWeight: pw.FontWeight.bold,
+                        color: primaryColor,
                       ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text(izin.nama),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text(izin.tipeIzin),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text(izin.deskripsi),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text(izin.tanggalMulai),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text(izin.tanggalAkhir),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text(_getStatusText(izin.status)),
-                      ),
-                    ],
-                  );
-                }).toList(),
+                    ),
+                  ],
+                ),
               ],
+            ),
+          );
+        },
+        footer: (pw.Context context) {
+          return pw.Container(
+            padding: const pw.EdgeInsets.only(top: 20),
+            decoration: const pw.BoxDecoration(
+              border: pw.Border(
+                top: pw.BorderSide(color: PdfColors.grey300, width: 1),
+              ),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  'HR Management System',
+                  style: pw.TextStyle(fontSize: 10, color: darkGray),
+                ),
+                pw.Text(
+                  'Halaman ${context.pageNumber} dari ${context.pagesCount}',
+                  style: pw.TextStyle(fontSize: 10, color: darkGray),
+                ),
+              ],
+            ),
+          );
+        },
+        build: (pw.Context context) {
+          return [
+            // Summary Cards
+            pw.Row(
+              children: [
+                pw.Expanded(
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.all(16),
+                    decoration: pw.BoxDecoration(
+                      color: lightGray,
+                      borderRadius: pw.BorderRadius.circular(8),
+                      border: pw.Border.all(color: mediumGray),
+                    ),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'Total Ajuan',
+                          style: pw.TextStyle(fontSize: 12, color: darkGray),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          '${dataIzin.length}',
+                          style: pw.TextStyle(
+                            fontSize: 24,
+                            fontWeight: pw.FontWeight.bold,
+                            color: primaryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                pw.SizedBox(width: 16),
+                pw.Expanded(
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.all(16),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColor.fromHex('#dcfce7'),
+                      borderRadius: pw.BorderRadius.circular(8),
+                      border: pw.Border.all(color: PdfColor.fromHex('#bbf7d0')),
+                    ),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'Diterima',
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            color: PdfColor.fromHex('#15803d'),
+                          ),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          '${dataIzin.where((izin) => izin.status.toLowerCase() == 'diterima' || izin.status.toLowerCase() == 'approved').length}',
+                          style: pw.TextStyle(
+                            fontSize: 24,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColor.fromHex('#15803d'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                pw.SizedBox(width: 16),
+                pw.Expanded(
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.all(16),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColor.fromHex('#fef2f2'),
+                      borderRadius: pw.BorderRadius.circular(8),
+                      border: pw.Border.all(color: PdfColor.fromHex('#fecaca')),
+                    ),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'Ditolak',
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            color: PdfColor.fromHex('#dc2626'),
+                          ),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          '${dataIzin.where((izin) => izin.status.toLowerCase() == 'ditolak' || izin.status.toLowerCase() == 'rejected').length}',
+                          style: pw.TextStyle(
+                            fontSize: 24,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColor.fromHex('#dc2626'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                pw.SizedBox(width: 16),
+                pw.Expanded(
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.all(16),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColor.fromHex('#fef3c7'),
+                      borderRadius: pw.BorderRadius.circular(8),
+                      border: pw.Border.all(color: PdfColor.fromHex('#fde68a')),
+                    ),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'Pending',
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            color: PdfColor.fromHex('#d97706'),
+                          ),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          '${dataIzin.where((izin) => izin.status.toLowerCase() == 'pending').length}',
+                          style: pw.TextStyle(
+                            fontSize: 24,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColor.fromHex('#d97706'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            pw.SizedBox(height: 32),
+
+            // Table Header
+            pw.Container(
+              padding: const pw.EdgeInsets.only(bottom: 16),
+              child: pw.Text(
+                'Detail Ajuan Izin Karyawan',
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  fontWeight: pw.FontWeight.bold,
+                  color: primaryColor,
+                ),
+              ),
+            ),
+
+            // Modern Table
+            pw.Container(
+              decoration: pw.BoxDecoration(
+                borderRadius: pw.BorderRadius.circular(12),
+                border: pw.Border.all(color: mediumGray),
+              ),
+              child: pw.Table(
+                columnWidths: {
+                  0: const pw.FlexColumnWidth(0.5),
+                  1: const pw.FlexColumnWidth(1.5),
+                  2: const pw.FlexColumnWidth(1.2),
+                  3: const pw.FlexColumnWidth(2),
+                  4: const pw.FlexColumnWidth(1.2),
+                  5: const pw.FlexColumnWidth(1.2),
+                  6: const pw.FlexColumnWidth(1),
+                },
+                children: [
+                  // Modern Header
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(
+                      color: primaryColor,
+                      borderRadius: const pw.BorderRadius.only(
+                        topLeft: pw.Radius.circular(12),
+                        topRight: pw.Radius.circular(12),
+                      ),
+                    ),
+                    children: [
+                      _buildTableHeader('No'),
+                      _buildTableHeader('Nama Karyawan'),
+                      _buildTableHeader('Tipe Izin'),
+                      _buildTableHeader('Deskripsi'),
+                      _buildTableHeader('Tanggal Mulai'),
+                      _buildTableHeader('Tanggal Akhir'),
+                      _buildTableHeader('Status'),
+                    ],
+                  ),
+
+                  // Data rows with alternating colors
+                  ...dataIzin.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final izin = entry.value;
+                    final isEven = index % 2 == 0;
+
+                    return pw.TableRow(
+                      decoration: pw.BoxDecoration(
+                        color: isEven ? PdfColors.white : lightGray,
+                      ),
+                      children: [
+                        _buildTableCell('${index + 1}', isCenter: true),
+                        _buildTableCell(izin.nama),
+                        _buildTableCell(izin.tipeIzin),
+                        _buildTableCell(izin.deskripsi, maxLines: 3),
+                        _buildTableCell(izin.tanggalMulai, isCenter: true),
+                        _buildTableCell(izin.tanggalAkhir, isCenter: true),
+                        _buildStatusCell(izin.status),
+                      ],
+                    );
+                  }).toList(),
+                ],
+              ),
             ),
           ];
         },
@@ -238,6 +402,83 @@ class _IzinKaryawanPageState extends State<IzinKaryawanPage> {
 
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdf.save(),
+    );
+  }
+
+  // Helper methods for table styling
+  pw.Widget _buildTableHeader(String text) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: 11,
+          fontWeight: pw.FontWeight.bold,
+          color: PdfColors.white,
+        ),
+        textAlign: pw.TextAlign.center,
+      ),
+    );
+  }
+
+  pw.Widget _buildTableCell(
+    String text, {
+    bool isCenter = false,
+    int maxLines = 2,
+  }) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(fontSize: 10, color: PdfColor.fromHex('#1a1a1a')),
+        textAlign: isCenter ? pw.TextAlign.center : pw.TextAlign.left,
+        maxLines: maxLines,
+        overflow: pw.TextOverflow.clip,
+      ),
+    );
+  }
+
+  pw.Widget _buildStatusCell(String status) {
+    String statusText = _getStatusText(status);
+    PdfColor bgColor;
+    PdfColor textColor;
+
+    switch (status.toLowerCase()) {
+      case 'diterima':
+      case 'approved':
+        bgColor = PdfColor.fromHex('#dcfce7');
+        textColor = PdfColor.fromHex('#15803d');
+        break;
+      case 'ditolak':
+      case 'rejected':
+        bgColor = PdfColor.fromHex('#fef2f2');
+        textColor = PdfColor.fromHex('#dc2626');
+        break;
+      case 'pending':
+      default:
+        bgColor = PdfColor.fromHex('#fef3c7');
+        textColor = PdfColor.fromHex('#d97706');
+        break;
+    }
+
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(12),
+      child: pw.Container(
+        padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: pw.BoxDecoration(
+          color: bgColor,
+          borderRadius: pw.BorderRadius.circular(20),
+        ),
+        child: pw.Text(
+          statusText,
+          style: pw.TextStyle(
+            fontSize: 9,
+            fontWeight: pw.FontWeight.bold,
+            color: textColor,
+          ),
+          textAlign: pw.TextAlign.center,
+        ),
+      ),
     );
   }
 

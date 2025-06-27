@@ -100,8 +100,8 @@ class _PengirimanState extends State<Pengiriman>
     switch (status.toLowerCase()) {
       case 'diproses':
         return Container(
-          width: 120,
-          height: 120,
+          width: 100,
+          height: 100,
           decoration: BoxDecoration(
             color: Colors.grey[100],
             shape: BoxShape.circle,
@@ -115,14 +115,14 @@ class _PengirimanState extends State<Pengiriman>
           ),
           child: const Icon(
             Icons.inventory_2_outlined,
-            size: 60,
+            size: 50,
             color: Colors.black87,
           ),
         );
       case 'dikirim':
         return Container(
-          width: 120,
-          height: 120,
+          width: 100,
+          height: 100,
           decoration: BoxDecoration(
             color: Colors.grey[100],
             shape: BoxShape.circle,
@@ -136,14 +136,14 @@ class _PengirimanState extends State<Pengiriman>
           ),
           child: const Icon(
             Icons.local_shipping_outlined,
-            size: 60,
+            size: 50,
             color: Colors.black87,
           ),
         );
       case 'diterima':
         return Container(
-          width: 120,
-          height: 120,
+          width: 100,
+          height: 100,
           decoration: BoxDecoration(
             color: Colors.grey[100],
             shape: BoxShape.circle,
@@ -157,14 +157,14 @@ class _PengirimanState extends State<Pengiriman>
           ),
           child: const Icon(
             Icons.check_circle_outline,
-            size: 60,
+            size: 50,
             color: Colors.black87,
           ),
         );
       default:
         return Container(
-          width: 120,
-          height: 120,
+          width: 100,
+          height: 100,
           decoration: BoxDecoration(
             color: Colors.grey[100],
             shape: BoxShape.circle,
@@ -178,7 +178,7 @@ class _PengirimanState extends State<Pengiriman>
           ),
           child: const Icon(
             Icons.help_outline,
-            size: 60,
+            size: 50,
             color: Colors.black87,
           ),
         );
@@ -305,29 +305,29 @@ class _PengirimanState extends State<Pengiriman>
                     opacity: _fadeAnimation,
                     child: ScaleTransition(
                       scale: _scaleAnimation,
-                      child: Padding(
-                        padding: const EdgeInsets.all(32.0),
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(24.0),
                         child: Column(
                           children: [
-                            const Spacer(flex: 2),
+                            const SizedBox(height: 40),
                             _buildStatusIcon(_statusPengiriman!.status),
-                            const SizedBox(height: 48),
+                            const SizedBox(height: 32),
                             Text(
                               _getStatusTitle(_statusPengiriman!.status),
                               textAlign: TextAlign.center,
                               style: const TextStyle(
-                                fontSize: 20,
+                                fontSize: 18,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.black87,
                                 letterSpacing: 1.0,
                                 height: 1.3,
                               ),
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 20),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 20,
+                                horizontal: 20,
+                                vertical: 16,
                               ),
                               decoration: BoxDecoration(
                                 color: Colors.grey[50],
@@ -343,18 +343,18 @@ class _PengirimanState extends State<Pengiriman>
                                 ),
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  fontSize: 15,
+                                  fontSize: 14,
                                   color: Colors.grey[700],
-                                  height: 1.6,
+                                  height: 1.5,
                                 ),
                               ),
                             ),
                             if (_statusPengiriman!.status.toLowerCase() ==
                                     'dikirim' &&
                                 _lokasiPengirim != null) ...[
-                              const SizedBox(height: 32),
+                              const SizedBox(height: 24),
                               Container(
-                                height: 200,
+                                height: 180,
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(color: Colors.grey[300]!),
@@ -384,7 +384,7 @@ class _PengirimanState extends State<Pengiriman>
                                 ),
                               ),
                             ],
-                            const Spacer(flex: 3),
+                            const SizedBox(height: 40),
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton(
@@ -427,6 +427,7 @@ class _PengirimanState extends State<Pengiriman>
                                 ),
                               ),
                             ),
+                            const SizedBox(height: 24),
                           ],
                         ),
                       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/models/admin_model.dart';
 import 'package:frontend/models/pembeli_model.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/daftar_produk/edit_produk_page.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/daftar_produk/tambah_produk_page.dart';
@@ -90,9 +91,7 @@ class _DaftarProdukPageState extends State<DaftarProdukPage> {
 
   void _deleteProduct(GetDataProduk product) async {
     try {
-      // Implementasi delete product
-      // await DeleteDataProduk.deleteProduct(product.id);
-
+      await HapusPRodukService.hapusProduk(product.id.toString());
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Produk "${product.nama_produk}" berhasil dihapus'),
@@ -335,10 +334,48 @@ class _DaftarProdukPageState extends State<DaftarProdukPage> {
                     const SizedBox(width: 8), // Jarak antar tombol
                     ElevatedButton.icon(
                       onPressed: () async {
-                        // Cetak semua produk jadi PDF
-                        final products = await _productsFuture;
-                        for (final product in products) {
+                        // Show loading indicator
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (BuildContext context) {
+                            return const AlertDialog(
+                              content: Row(
+                                children: [
+                                  CircularProgressIndicator(),
+                                  SizedBox(width: 20),
+                                  Text("Membuat PDF..."),
+                                ],
+                              ),
+                            );
+                          },
+                        );
+
+                        try {
+                          // Generate PDF (hanya sekali, bukan dalam loop)
                           await generateAllProductPDF(context);
+
+                          // Close loading dialog
+                          Navigator.of(context).pop();
+
+                          // Show success message
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('PDF berhasil dibuat!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        } catch (e) {
+                          // Close loading dialog
+                          Navigator.of(context).pop();
+
+                          // Show error message
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Gagal membuat PDF: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
                         }
                       },
                       icon: const Icon(Icons.picture_as_pdf, size: 18),

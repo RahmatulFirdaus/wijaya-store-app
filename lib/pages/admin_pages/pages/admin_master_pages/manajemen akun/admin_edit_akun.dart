@@ -382,6 +382,7 @@ class _AdminEditAkunState extends State<AdminEditAkun> {
             ),
           ),
           const SizedBox(height: 12),
+          // First row with Karyawan and Admin
           Row(
             children: [
               Expanded(
@@ -454,6 +455,41 @@ class _AdminEditAkunState extends State<AdminEditAkun> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          // Second row with Pembeli (full width)
+          GestureDetector(
+            onTap: () => setState(() => _selectedRole = 'pembeli'),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              decoration: BoxDecoration(
+                color:
+                    _selectedRole == 'pembeli'
+                        ? Colors.black87
+                        : Colors.grey.shade50,
+                border: Border.all(
+                  color:
+                      _selectedRole == 'pembeli'
+                          ? Colors.black87
+                          : Colors.grey.shade300,
+                  width: _selectedRole == 'pembeli' ? 2 : 1,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'Pembeli',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color:
+                      _selectedRole == 'pembeli'
+                          ? Colors.white
+                          : Colors.black54,
+                ),
+              ),
+            ),
           ),
         ],
       ),

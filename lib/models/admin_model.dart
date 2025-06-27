@@ -1194,6 +1194,26 @@ class HapusAkunService {
   }
 }
 
+class HapusPRodukService {
+  static Future<String> hapusProduk(String id) async {
+    final url = Uri.parse('http://192.168.1.96:3000/api/adminDeleteProduk/$id');
+
+    try {
+      final response = await http.delete(url);
+
+      final body = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return body['pesan'] ?? 'Produk berhasil dihapus';
+      } else {
+        return body['pesan'] ?? 'Gagal menghapus produk';
+      }
+    } catch (e) {
+      return 'Terjadi kesalahan: $e';
+    }
+  }
+}
+
 class HapusMetodePembayaranService {
   static Future<String> hapusMetodePembayaran(String id) async {
     final url = Uri.parse(

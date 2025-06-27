@@ -17,7 +17,7 @@ class _AdminTambahAkunState extends State<AdminTambahAkun> {
   final _emailController = TextEditingController();
   final _nomorTelpController = TextEditingController();
 
-  String _selectedRole = 'Karyawan';
+  String _selectedRole = 'karyawan';
   bool _isLoading = false;
   bool _obscurePassword = true;
 
@@ -68,7 +68,7 @@ class _AdminTambahAkunState extends State<AdminTambahAkun> {
           _emailController.clear();
           _nomorTelpController.clear();
           setState(() {
-            _selectedRole = 'Karyawan';
+            _selectedRole = 'karyawan';
           });
         }
       }
@@ -311,6 +311,8 @@ class _AdminTambahAkunState extends State<AdminTambahAkun> {
   }
 
   Widget _buildRoleSelector() {
+    final roles = ['karyawan', 'admin', 'pembeli'];
+
     return Container(
       margin: const EdgeInsets.only(bottom: 30),
       child: Column(
@@ -325,70 +327,115 @@ class _AdminTambahAkunState extends State<AdminTambahAkun> {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
+          Column(
             children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _selectedRole = 'Karyawan'),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    decoration: BoxDecoration(
-                      color:
-                          _selectedRole == 'Karyawan'
-                              ? Colors.black87
-                              : Colors.grey.shade50,
-                      border: Border.all(
-                        color:
-                            _selectedRole == 'Karyawan'
-                                ? Colors.black87
-                                : Colors.grey.shade300,
-                        width: _selectedRole == 'Karyawan' ? 2 : 1,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      'Karyawan',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color:
-                            _selectedRole == 'Karyawan'
-                                ? Colors.white
-                                : Colors.black54,
+              // Baris pertama: karyawan dan Admin
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _selectedRole = 'karyawan'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        decoration: BoxDecoration(
+                          color:
+                              _selectedRole == 'karyawan'
+                                  ? Colors.black87
+                                  : Colors.grey.shade50,
+                          border: Border.all(
+                            color:
+                                _selectedRole == 'karyawan'
+                                    ? Colors.black87
+                                    : Colors.grey.shade300,
+                            width: _selectedRole == 'karyawan' ? 2 : 1,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'karyawan',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color:
+                                _selectedRole == 'karyawan'
+                                    ? Colors.white
+                                    : Colors.black54,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _selectedRole = 'admin'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        decoration: BoxDecoration(
+                          color:
+                              _selectedRole == 'admin'
+                                  ? Colors.black87
+                                  : Colors.grey.shade50,
+                          border: Border.all(
+                            color:
+                                _selectedRole == 'admin'
+                                    ? Colors.black87
+                                    : Colors.grey.shade300,
+                            width: _selectedRole == 'admin' ? 2 : 1,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'admin',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color:
+                                _selectedRole == 'admin'
+                                    ? Colors.white
+                                    : Colors.black54,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
+              const SizedBox(height: 12),
+              // Baris kedua: pembeli (full width)
+              Container(
+                width: double.infinity,
                 child: GestureDetector(
-                  onTap: () => setState(() => _selectedRole = 'Admin'),
+                  onTap: () => setState(() => _selectedRole = 'pembeli'),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 16,
+                      horizontal: 16,
+                    ),
                     decoration: BoxDecoration(
                       color:
-                          _selectedRole == 'Admin'
+                          _selectedRole == 'pembeli'
                               ? Colors.black87
                               : Colors.grey.shade50,
                       border: Border.all(
                         color:
-                            _selectedRole == 'Admin'
+                            _selectedRole == 'pembeli'
                                 ? Colors.black87
                                 : Colors.grey.shade300,
-                        width: _selectedRole == 'Admin' ? 2 : 1,
+                        width: _selectedRole == 'pembeli' ? 2 : 1,
                       ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      'Admin',
+                      'pembeli',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color:
-                            _selectedRole == 'Admin'
+                            _selectedRole == 'pembeli'
                                 ? Colors.white
                                 : Colors.black54,
                       ),

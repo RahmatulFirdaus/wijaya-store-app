@@ -102,123 +102,207 @@ class _AbsensiKaryawanPageState extends State<AbsensiKaryawanPage> {
     final pdf = pw.Document();
     final dataToExport = _filteredAbsensiList;
 
+    // Modern color palette
+    final primaryColor = PdfColor.fromHex('#2563EB'); // Modern blue
+    final secondaryColor = PdfColor.fromHex('#F8FAFC'); // Light gray
+    final accentColor = PdfColor.fromHex('#10B981'); // Modern green
+    final textDark = PdfColor.fromHex('#1F2937'); // Dark gray
+    final textLight = PdfColor.fromHex('#6B7280'); // Light gray
+
     String reportTitle = 'LAPORAN ABSENSI KARYAWAN';
+    String dateSubtitle = '';
     if (_selectedDate != null) {
       String formattedDate =
           "${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}";
-      reportTitle += '\nTanggal: $formattedDate';
+      dateSubtitle = 'Periode: $formattedDate';
     }
 
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
+        margin: const pw.EdgeInsets.all(24),
         build: (pw.Context context) {
           return [
-            pw.Header(
-              level: 0,
-              child: pw.Text(
-                reportTitle,
-                style: pw.TextStyle(
-                  fontSize: 20,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-                textAlign: pw.TextAlign.center,
+            // Modern Header with gradient-like effect
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.all(24),
+              decoration: pw.BoxDecoration(
+                color: primaryColor,
+                borderRadius: pw.BorderRadius.circular(12),
               ),
-            ),
-            pw.SizedBox(height: 20),
-            pw.Text(
-              'Tanggal Cetak: ${DateTime.now().toString().split(' ')[0]}',
-              style: const pw.TextStyle(fontSize: 12),
-            ),
-            if (_selectedDate != null)
-              pw.Text(
-                'Filter Tanggal: ${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
-                style: const pw.TextStyle(fontSize: 12),
-              ),
-            pw.SizedBox(height: 20),
-            pw.Table(
-              border: pw.TableBorder.all(color: PdfColors.black, width: 1),
-              columnWidths: {
-                0: const pw.FlexColumnWidth(1),
-                1: const pw.FlexColumnWidth(2),
-                2: const pw.FlexColumnWidth(1.5),
-                3: const pw.FlexColumnWidth(1.5),
-              },
-              children: [
-                // Header
-                pw.TableRow(
-                  decoration: const pw.BoxDecoration(color: PdfColors.grey300),
-                  children: [
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        'No',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                        textAlign: pw.TextAlign.center,
-                      ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.center,
+                children: [
+                  pw.Text(
+                    reportTitle,
+                    style: pw.TextStyle(
+                      fontSize: 24,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.white,
                     ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        'Nama Karyawan',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                        textAlign: pw.TextAlign.center,
+                    textAlign: pw.TextAlign.center,
+                  ),
+                  if (dateSubtitle.isNotEmpty) ...[
+                    pw.SizedBox(height: 8),
+                    pw.Text(
+                      dateSubtitle,
+                      style: pw.TextStyle(
+                        fontSize: 14,
+                        color: PdfColors.white.shade(0.9),
                       ),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        'Tanggal',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                        textAlign: pw.TextAlign.center,
-                      ),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        'Status Absen',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                        textAlign: pw.TextAlign.center,
-                      ),
+                      textAlign: pw.TextAlign.center,
                     ),
                   ],
+                ],
+              ),
+            ),
+
+            pw.SizedBox(height: 24),
+
+            // Info Card
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.all(16),
+              decoration: pw.BoxDecoration(
+                color: secondaryColor,
+                borderRadius: pw.BorderRadius.circular(8),
+                border: pw.Border.all(
+                  color: PdfColor.fromHex('#E5E7EB'),
+                  width: 1,
                 ),
-                // Data rows
-                ...dataToExport.asMap().entries.map((entry) {
-                  int index = entry.key;
-                  AbsensiKaryawan absensi = entry.value;
-                  return pw.TableRow(
+              ),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text(
-                          '${index + 1}',
-                          textAlign: pw.TextAlign.center,
+                      pw.Text(
+                        'Tanggal Cetak',
+                        style: pw.TextStyle(
+                          fontSize: 10,
+                          color: textLight,
+                          fontWeight: pw.FontWeight.normal,
                         ),
                       ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text(absensi.nama),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text(
-                          absensi.tanggal,
-                          textAlign: pw.TextAlign.center,
-                        ),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text(
-                          absensi.absenMasuk,
-                          textAlign: pw.TextAlign.center,
+                      pw.SizedBox(height: 2),
+                      pw.Text(
+                        DateTime.now().toString().split(' ')[0],
+                        style: pw.TextStyle(
+                          fontSize: 12,
+                          color: textDark,
+                          fontWeight: pw.FontWeight.bold,
                         ),
                       ),
                     ],
-                  );
-                }).toList(),
-              ],
+                  ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text(
+                        'Total Records',
+                        style: pw.TextStyle(
+                          fontSize: 10,
+                          color: textLight,
+                          fontWeight: pw.FontWeight.normal,
+                        ),
+                      ),
+                      pw.SizedBox(height: 2),
+                      pw.Text(
+                        '${dataToExport.length}',
+                        style: pw.TextStyle(
+                          fontSize: 12,
+                          color: accentColor,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            pw.SizedBox(height: 24),
+
+            // Modern Table
+            pw.Container(
+              decoration: pw.BoxDecoration(
+                borderRadius: pw.BorderRadius.circular(8),
+                border: pw.Border.all(
+                  color: PdfColor.fromHex('#E5E7EB'),
+                  width: 1,
+                ),
+              ),
+              child: pw.Table(
+                columnWidths: {
+                  0: const pw.FlexColumnWidth(0.8),
+                  1: const pw.FlexColumnWidth(2.5),
+                  2: const pw.FlexColumnWidth(1.5),
+                  3: const pw.FlexColumnWidth(1.5),
+                },
+                children: [
+                  // Modern Header
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(
+                      color: primaryColor,
+                      borderRadius: const pw.BorderRadius.only(
+                        topLeft: pw.Radius.circular(8),
+                        topRight: pw.Radius.circular(8),
+                      ),
+                    ),
+                    children: [
+                      _buildTableHeader('No'),
+                      _buildTableHeader('Nama Karyawan'),
+                      _buildTableHeader('Tanggal'),
+                      _buildTableHeader('Status Absen'),
+                    ],
+                  ),
+                  // Data rows with alternating colors
+                  ...dataToExport.asMap().entries.map((entry) {
+                    int index = entry.key;
+                    AbsensiKaryawan absensi = entry.value;
+                    bool isEven = index % 2 == 0;
+
+                    return pw.TableRow(
+                      decoration: pw.BoxDecoration(
+                        color: isEven ? PdfColors.white : secondaryColor,
+                      ),
+                      children: [
+                        _buildTableCell('${index + 1}', isCenter: true),
+                        _buildTableCell(absensi.nama),
+                        _buildTableCell(absensi.tanggal, isCenter: true),
+                        _buildStatusCell(absensi.absenMasuk),
+                      ],
+                    );
+                  }).toList(),
+                ],
+              ),
+            ),
+
+            pw.SizedBox(height: 32),
+
+            // Modern Footer
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.all(16),
+              decoration: pw.BoxDecoration(
+                color: PdfColor.fromHex('#F9FAFB'),
+                borderRadius: pw.BorderRadius.circular(8),
+              ),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'Generated by Rahmatul Firdaus',
+                    style: pw.TextStyle(
+                      fontSize: 10,
+                      color: textLight,
+                      fontStyle: pw.FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ];
         },
@@ -227,6 +311,88 @@ class _AbsensiKaryawanPageState extends State<AbsensiKaryawanPage> {
 
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdf.save(),
+    );
+  }
+
+  // Helper method for table headers
+  pw.Widget _buildTableHeader(String text) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(12),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontWeight: pw.FontWeight.bold,
+          fontSize: 12,
+          color: PdfColors.white,
+        ),
+        textAlign: pw.TextAlign.center,
+      ),
+    );
+  }
+
+  // Helper method for table cells
+  pw.Widget _buildTableCell(String text, {bool isCenter = false}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(12),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(fontSize: 11, color: PdfColor.fromHex('#374151')),
+        textAlign: isCenter ? pw.TextAlign.center : pw.TextAlign.left,
+      ),
+    );
+  }
+
+  // Helper method for status cells with color coding
+  pw.Widget _buildStatusCell(String status) {
+    PdfColor statusColor;
+    PdfColor bgColor;
+
+    switch (status.toLowerCase()) {
+      case 'hadir':
+      case 'present':
+        statusColor = PdfColor.fromHex('#059669'); // Green
+        bgColor = PdfColor.fromHex('#D1FAE5'); // Light green
+        break;
+      case 'sakit':
+      case 'sick':
+        statusColor = PdfColor.fromHex('#DC2626'); // Red
+        bgColor = PdfColor.fromHex('#FEE2E2'); // Light red
+        break;
+      case 'izin':
+      case 'permission':
+        statusColor = PdfColor.fromHex('#D97706'); // Orange
+        bgColor = PdfColor.fromHex('#FED7AA'); // Light orange
+        break;
+      case 'alpha':
+      case 'absent':
+        statusColor = PdfColor.fromHex('#7C2D12'); // Dark red
+        bgColor = PdfColor.fromHex('#FEE2E2'); // Light red
+        break;
+      default:
+        statusColor = PdfColor.fromHex('#6B7280'); // Gray
+        bgColor = PdfColor.fromHex('#F3F4F6'); // Light gray
+    }
+
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(8),
+      child: pw.Center(
+        child: pw.Container(
+          padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: pw.BoxDecoration(
+            color: bgColor,
+            borderRadius: pw.BorderRadius.circular(4),
+          ),
+          child: pw.Text(
+            status,
+            style: pw.TextStyle(
+              fontSize: 10,
+              color: statusColor,
+              fontWeight: pw.FontWeight.bold,
+            ),
+            textAlign: pw.TextAlign.center,
+          ),
+        ),
+      ),
     );
   }
 
