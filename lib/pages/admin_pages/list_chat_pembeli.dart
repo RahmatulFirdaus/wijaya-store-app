@@ -49,7 +49,7 @@ class _PembeliListPageState extends State<PembeliListPage> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
-          'Daftar Pembeli',
+          'List Chat Pembeli',
           style: TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.bold,
@@ -79,7 +79,7 @@ class _PembeliListPageState extends State<PembeliListPage> {
                     ),
                     SizedBox(height: 16),
                     Text(
-                      'Tidak ada pembeli tersedia',
+                      'Tidak ada Chat pembeli tersedia',
                       style: TextStyle(color: Colors.grey[600], fontSize: 16),
                     ),
                   ],

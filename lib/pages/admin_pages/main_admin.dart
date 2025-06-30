@@ -685,7 +685,7 @@ class _MainAdminState extends State<MainAdmin> {
       elevation: 12,
       icon: const Icon(Icons.chat_bubble_outline_rounded, size: 24),
       label: const Text(
-        'Customer Service',
+        'Chat Pembeli',
         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
