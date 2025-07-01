@@ -15,7 +15,16 @@ class PengirimanPage extends StatefulWidget {
 
 class _PengirimanPageState extends State<PengirimanPage> {
   List<DetailPengiriman> pengirimanList = [];
+  List<DetailPengiriman> filteredPengirimanList = [];
   bool isLoading = true;
+  String selectedFilter = 'Semua'; // Filter yang dipilih
+
+  final List<String> filterOptions = [
+    'Semua',
+    'Diproses',
+    'Dikirim',
+    'Diterima',
+  ];
 
   @override
   void initState() {
@@ -28,6 +37,7 @@ class _PengirimanPageState extends State<PengirimanPage> {
       final data = await DetailPengiriman.getPengiriman();
       setState(() {
         pengirimanList = data ?? [];
+        _applyFilter();
         isLoading = false;
       });
     } catch (e) {
@@ -45,6 +55,32 @@ class _PengirimanPageState extends State<PengirimanPage> {
           icon: const Icon(Icons.error_outline, color: Colors.white),
         );
       }
+    }
+  }
+
+  void _applyFilter() {
+    setState(() {
+      if (selectedFilter == 'Semua') {
+        filteredPengirimanList = pengirimanList;
+      } else {
+        filteredPengirimanList =
+            pengirimanList
+                .where(
+                  (pengiriman) =>
+                      pengiriman.statusPengiriman.toLowerCase() ==
+                      selectedFilter.toLowerCase(),
+                )
+                .toList();
+      }
+    });
+  }
+
+  void _onFilterChanged(String? newFilter) {
+    if (newFilter != null) {
+      setState(() {
+        selectedFilter = newFilter;
+      });
+      _applyFilter();
     }
   }
 
@@ -77,6 +113,9 @@ class _PengirimanPageState extends State<PengirimanPage> {
   Future<void> _generatePDF() async {
     final pdf = pw.Document();
 
+    // Gunakan data yang sudah difilter
+    final dataToExport = filteredPengirimanList;
+
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
@@ -98,6 +137,15 @@ class _PengirimanPageState extends State<PengirimanPage> {
                   ),
                   pw.SizedBox(height: 5),
                   pw.Text(
+                    'Filter Status: $selectedFilter',
+                    style: pw.TextStyle(
+                      fontSize: 12,
+                      color: PdfColors.grey600,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.SizedBox(height: 3),
+                  pw.Text(
                     'Tanggal Cetak: ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
                     style: pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
                   ),
@@ -105,7 +153,7 @@ class _PengirimanPageState extends State<PengirimanPage> {
               ),
             ),
 
-            // Ringkasan Data
+            // Ringkasan Data (berdasarkan filter)
             pw.Container(
               padding: const pw.EdgeInsets.all(15),
               decoration: pw.BoxDecoration(
@@ -125,7 +173,7 @@ class _PengirimanPageState extends State<PengirimanPage> {
                         ),
                       ),
                       pw.Text(
-                        '${pengirimanList.length}',
+                        '${dataToExport.length}',
                         style: pw.TextStyle(
                           fontSize: 16,
                           fontWeight: pw.FontWeight.bold,
@@ -143,7 +191,7 @@ class _PengirimanPageState extends State<PengirimanPage> {
                         ),
                       ),
                       pw.Text(
-                        '${pengirimanList.where((p) => p.statusPengiriman.toLowerCase() == 'diproses').length}',
+                        '${dataToExport.where((p) => p.statusPengiriman.toLowerCase() == 'diproses').length}',
                         style: pw.TextStyle(
                           fontSize: 16,
                           fontWeight: pw.FontWeight.bold,
@@ -162,7 +210,7 @@ class _PengirimanPageState extends State<PengirimanPage> {
                         ),
                       ),
                       pw.Text(
-                        '${pengirimanList.where((p) => p.statusPengiriman.toLowerCase() == 'dikirim').length}',
+                        '${dataToExport.where((p) => p.statusPengiriman.toLowerCase() == 'dikirim').length}',
                         style: pw.TextStyle(
                           fontSize: 16,
                           fontWeight: pw.FontWeight.bold,
@@ -181,7 +229,7 @@ class _PengirimanPageState extends State<PengirimanPage> {
                         ),
                       ),
                       pw.Text(
-                        '${pengirimanList.where((p) => p.statusPengiriman.toLowerCase() == 'diterima').length}',
+                        '${dataToExport.where((p) => p.statusPengiriman.toLowerCase() == 'diterima').length}',
                         style: pw.TextStyle(
                           fontSize: 16,
                           fontWeight: pw.FontWeight.bold,
@@ -203,8 +251,8 @@ class _PengirimanPageState extends State<PengirimanPage> {
             ),
             pw.SizedBox(height: 15),
 
-            // Loop untuk setiap pengiriman
-            ...pengirimanList.map((pengiriman) {
+            // Loop untuk setiap pengiriman yang sudah difilter
+            ...dataToExport.map((pengiriman) {
               return pw.Container(
                 margin: const pw.EdgeInsets.only(bottom: 20),
                 padding: const pw.EdgeInsets.all(15),
@@ -356,6 +404,22 @@ class _PengirimanPageState extends State<PengirimanPage> {
                 ),
               );
             }),
+
+            // Jika tidak ada data setelah filter
+            if (dataToExport.isEmpty)
+              pw.Container(
+                padding: const pw.EdgeInsets.all(20),
+                child: pw.Center(
+                  child: pw.Text(
+                    'Tidak ada data pengiriman dengan status "$selectedFilter"',
+                    style: pw.TextStyle(
+                      fontSize: 14,
+                      color: PdfColors.grey600,
+                      fontStyle: pw.FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ),
           ];
         },
       ),
@@ -452,175 +516,310 @@ class _PengirimanPageState extends State<PengirimanPage> {
               ? const Center(
                 child: CircularProgressIndicator(color: Colors.black),
               )
-              : pengirimanList.isEmpty
-              ? const Center(
-                child: Text(
-                  'Tidak ada data pengiriman',
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-              )
-              : Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: ListView.builder(
-                  itemCount: pengirimanList.length,
-                  itemBuilder: (context, index) {
-                    final pengiriman = pengirimanList[index];
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                        border: Border.all(
-                          color: Colors.grey.withOpacity(0.2),
-                          width: 1,
+              : Column(
+                children: [
+                  // Filter Section
+                  Container(
+                    margin: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.filter_list,
+                          size: 20,
+                          color: Colors.grey,
                         ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Header dengan Nama dan Status (ID dihapus)
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    pengiriman.namaPengguna,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _getStatusColor(
-                                      pengiriman.statusPengiriman,
-                                    ).withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: _getStatusColor(
-                                        pengiriman.statusPengiriman,
-                                      ),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        _getStatusIcon(
-                                          pengiriman.statusPengiriman,
-                                        ),
-                                        size: 14,
-                                        color: _getStatusColor(
-                                          pengiriman.statusPengiriman,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        pengiriman.statusPengiriman,
-                                        style: TextStyle(
-                                          fontSize: 12,
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Filter Status:',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: selectedFilter,
+                              isExpanded: true,
+                              icon: const Icon(Icons.keyboard_arrow_down),
+                              items:
+                                  filterOptions.map((String value) {
+                                    return DropdownMenuItem<String>(
+                                      value: value,
+                                      child: Text(
+                                        value,
+                                        style: const TextStyle(
+                                          fontSize: 14,
                                           fontWeight: FontWeight.w500,
-                                          color: _getStatusColor(
-                                            pengiriman.statusPengiriman,
-                                          ),
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                                    );
+                                  }).toList(),
+                              onChanged: _onFilterChanged,
                             ),
-                            const SizedBox(height: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
-                            // Alamat
-                            _buildInfoRow(
-                              Icons.location_on_outlined,
-                              'Alamat Pengiriman',
-                              pengiriman.alamatPengiriman,
-                            ),
-                            const SizedBox(height: 8),
-
-                            // Tanggal
-                            _buildInfoRow(
-                              Icons.calendar_today_outlined,
-                              'Tanggal Pengiriman',
-                              pengiriman.tanggalPengiriman,
-                            ),
-                            const SizedBox(height: 8),
-
-                            // Total Harga
-                            _buildInfoRow(
-                              Icons.attach_money_outlined,
-                              'Total Harga',
-                              'Rp ${pengiriman.totalHarga}',
-                            ),
-                            const SizedBox(height: 8),
-
-                            // Jumlah Item
-                            _buildInfoRow(
-                              Icons.inventory_2_outlined,
-                              'Jumlah Item',
-                              '${pengiriman.items.length} produk',
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            // Tombol Ubah Status
-                            SizedBox(
-                              width: double.infinity,
-                              height: 44,
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder:
-                                          (context) => AdminPengirimanDetail(
-                                            idPengiriman:
-                                                pengiriman.idPengiriman,
-                                          ),
-                                    ),
-                                  ).then((_) => _loadPengirimanData());
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.black,
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Ubah Status',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
+                  // Results Count
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Menampilkan ${filteredPengirimanList.length} dari ${pengirimanList.length} pengiriman',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        if (selectedFilter != 'Semua')
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                selectedFilter = 'Semua';
+                              });
+                              _applyFilter();
+                            },
+                            child: const Text(
+                              'Reset Filter',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.blue,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Content
+                  Expanded(
+                    child:
+                        filteredPengirimanList.isEmpty
+                            ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.inbox_outlined,
+                                    size: 64,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    selectedFilter == 'Semua'
+                                        ? 'Tidak ada data pengiriman'
+                                        : 'Tidak ada pengiriman dengan status "$selectedFilter"',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                            : Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0,
+                              ),
+                              child: ListView.builder(
+                                itemCount: filteredPengirimanList.length,
+                                itemBuilder: (context, index) {
+                                  final pengiriman =
+                                      filteredPengirimanList[index];
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.08),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                      border: Border.all(
+                                        color: Colors.grey.withOpacity(0.2),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          // Header dengan Nama dan Status
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  pengiriman.namaPengguna,
+                                                  style: const TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.black87,
+                                                  ),
+                                                ),
+                                              ),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 6,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: _getStatusColor(
+                                                    pengiriman.statusPengiriman,
+                                                  ).withOpacity(0.1),
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                  border: Border.all(
+                                                    color: _getStatusColor(
+                                                      pengiriman
+                                                          .statusPengiriman,
+                                                    ),
+                                                    width: 1,
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      _getStatusIcon(
+                                                        pengiriman
+                                                            .statusPengiriman,
+                                                      ),
+                                                      size: 14,
+                                                      color: _getStatusColor(
+                                                        pengiriman
+                                                            .statusPengiriman,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      pengiriman
+                                                          .statusPengiriman,
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                        color: _getStatusColor(
+                                                          pengiriman
+                                                              .statusPengiriman,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 12),
+
+                                          // Alamat
+                                          _buildInfoRow(
+                                            Icons.location_on_outlined,
+                                            'Alamat Pengiriman',
+                                            pengiriman.alamatPengiriman,
+                                          ),
+                                          const SizedBox(height: 8),
+
+                                          // Tanggal
+                                          _buildInfoRow(
+                                            Icons.calendar_today_outlined,
+                                            'Tanggal Pengiriman',
+                                            pengiriman.tanggalPengiriman,
+                                          ),
+                                          const SizedBox(height: 8),
+
+                                          // Total Harga
+                                          _buildInfoRow(
+                                            Icons.attach_money_outlined,
+                                            'Total Harga',
+                                            'Rp ${pengiriman.totalHarga}',
+                                          ),
+                                          const SizedBox(height: 8),
+
+                                          // Jumlah Item
+                                          _buildInfoRow(
+                                            Icons.inventory_2_outlined,
+                                            'Jumlah Item',
+                                            '${pengiriman.items.length} produk',
+                                          ),
+
+                                          const SizedBox(height: 16),
+
+                                          // Tombol Ubah Status
+                                          SizedBox(
+                                            width: double.infinity,
+                                            height: 44,
+                                            child: ElevatedButton(
+                                              onPressed: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder:
+                                                        (
+                                                          context,
+                                                        ) => AdminPengirimanDetail(
+                                                          idPengiriman:
+                                                              pengiriman
+                                                                  .idPengiriman,
+                                                        ),
+                                                  ),
+                                                ).then(
+                                                  (_) => _loadPengirimanData(),
+                                                );
+                                              },
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.black,
+                                                foregroundColor: Colors.white,
+                                                elevation: 0,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                              ),
+                                              child: const Text(
+                                                'Ubah Status',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                  ),
+                ],
               ),
     );
   }

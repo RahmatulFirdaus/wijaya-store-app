@@ -44,6 +44,19 @@ class _FakturOnlinePageState extends State<FakturOnlinePage>
     _loadFakturData();
   }
 
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return Colors.orange;
+      case 'berhasil':
+        return Colors.blue;
+      case 'gagal':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
   void _loadFakturData() async {
     try {
       final fakturList = await _apiService.fetchFakturOnlineAdmin();
@@ -76,7 +89,8 @@ class _FakturOnlinePageState extends State<FakturOnlinePage>
                   ) ||
                   faktur.alamatPengiriman.toLowerCase().contains(
                     query.toLowerCase(),
-                  );
+                  ) ||
+                  faktur.status.toLowerCase().contains(query.toLowerCase());
             }).toList();
       }
     });
@@ -168,6 +182,21 @@ class _FakturOnlinePageState extends State<FakturOnlinePage>
                       ),
                       pw.Text(
                         faktur.tanggalFaktur,
+                        style: const pw.TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                pw.Expanded(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'Status:',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      ),
+                      pw.Text(
+                        faktur.status,
                         style: const pw.TextStyle(fontSize: 12),
                       ),
                     ],
@@ -552,6 +581,14 @@ class _FakturOnlinePageState extends State<FakturOnlinePage>
                             ),
                             pw.SizedBox(height: 2),
                             pw.Text(
+                              'Status: ${faktur.status}',
+                              style: const pw.TextStyle(
+                                fontSize: 10,
+                                color: PdfColors.blue700,
+                              ),
+                            ),
+                            pw.SizedBox(height: 2),
+                            pw.Text(
                               'Total: Rp ${_formatCurrency(fakturTotal)}',
                               style: pw.TextStyle(
                                 fontSize: 10,
@@ -900,7 +937,7 @@ class _FakturOnlinePageState extends State<FakturOnlinePage>
               onChanged: _filterFaktur,
               decoration: InputDecoration(
                 hintText:
-                    'Cari nama pembeli, nomor faktur, tanggal, atau alamat...',
+                    'Cari nama pembeli, nomor faktur, tanggal, alamat, atau status...',
                 hintStyle: TextStyle(color: Colors.grey.shade500),
                 prefixIcon: const Icon(Icons.search, color: Color(0xFF3B82F6)),
                 suffixIcon:
@@ -1168,6 +1205,15 @@ class _FakturOnlinePageState extends State<FakturOnlinePage>
                         title: 'Tanggal',
                         value: faktur.tanggalFaktur,
                         color: const Color(0xFFF59E0B),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildInfoCard(
+                        icon: Icons.info_outline,
+                        title: 'Status',
+                        value: faktur.status,
+                        color: _getStatusColor(faktur.status),
                       ),
                     ),
                   ],

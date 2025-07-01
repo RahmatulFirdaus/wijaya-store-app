@@ -14,8 +14,17 @@ class IzinKaryawanPage extends StatefulWidget {
 
 class _IzinKaryawanPageState extends State<IzinKaryawanPage> {
   List<IzinKaryawan> dataIzin = [];
+  List<IzinKaryawan> filteredDataIzin = [];
   bool isLoading = true;
   String? error;
+  String selectedFilter = 'Semua'; // Default filter
+
+  final List<String> filterOptions = [
+    'Semua',
+    'Diterima',
+    'Ditolak',
+    'Pending',
+  ];
 
   @override
   void initState() {
@@ -33,13 +42,38 @@ class _IzinKaryawanPageState extends State<IzinKaryawanPage> {
       final data = await IzinKaryawan.getDataIzinKaryawan();
       setState(() {
         dataIzin = data;
+        filteredDataIzin = data;
         isLoading = false;
       });
+      _applyFilter(); // Apply current filter after loading data
     } catch (e) {
       setState(() {
         error = e.toString();
         isLoading = false;
       });
+    }
+  }
+
+  void _applyFilter() {
+    setState(() {
+      if (selectedFilter == 'Semua') {
+        filteredDataIzin = dataIzin;
+      } else {
+        filteredDataIzin =
+            dataIzin.where((izin) {
+              String status = _getStatusText(izin.status);
+              return status == selectedFilter;
+            }).toList();
+      }
+    });
+  }
+
+  void _onFilterChanged(String? newFilter) {
+    if (newFilter != null) {
+      setState(() {
+        selectedFilter = newFilter;
+      });
+      _applyFilter();
     }
   }
 
@@ -105,8 +139,71 @@ class _IzinKaryawanPageState extends State<IzinKaryawanPage> {
     }
   }
 
+  Widget _buildFilterChip(String label, bool isSelected) {
+    return FilterChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          color: isSelected ? Colors.white : Colors.black,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      selected: isSelected,
+      selectedColor: Colors.black,
+      backgroundColor: Colors.grey.shade100,
+      side: BorderSide(
+        color: isSelected ? Colors.black : Colors.grey.shade300,
+        width: 1,
+      ),
+      onSelected: (selected) {
+        if (selected) {
+          _onFilterChanged(label);
+        }
+      },
+    );
+  }
+
+  Widget _buildFilterSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Filter Status:',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children:
+                filterOptions.map((option) {
+                  return _buildFilterChip(option, selectedFilter == option);
+                }).toList(),
+          ),
+          if (selectedFilter != 'Semua') ...[
+            const SizedBox(height: 8),
+            Text(
+              'Menampilkan ${filteredDataIzin.length} dari ${dataIzin.length} data',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Future<void> _generatePDF() async {
     final pdf = pw.Document();
+
+    // Use filtered data for PDF generation
+    final pdfData = filteredDataIzin;
 
     // Custom colors
     final primaryColor = PdfColor.fromHex('#1a1a1a');
@@ -140,6 +237,13 @@ class _IzinKaryawanPageState extends State<IzinKaryawanPage> {
                         fontWeight: pw.FontWeight.bold,
                         color: primaryColor,
                       ),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      selectedFilter == 'Semua'
+                          ? 'Semua Status'
+                          : 'Filter: $selectedFilter',
+                      style: pw.TextStyle(fontSize: 12, color: darkGray),
                     ),
                   ],
                 ),
@@ -189,7 +293,7 @@ class _IzinKaryawanPageState extends State<IzinKaryawanPage> {
         },
         build: (pw.Context context) {
           return [
-            // Summary Cards
+            // Summary Cards with filtered data
             pw.Row(
               children: [
                 pw.Expanded(
@@ -204,12 +308,14 @@ class _IzinKaryawanPageState extends State<IzinKaryawanPage> {
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
                         pw.Text(
-                          'Total Ajuan',
+                          selectedFilter == 'Semua'
+                              ? 'Total Ajuan'
+                              : 'Total Filtered',
                           style: pw.TextStyle(fontSize: 12, color: darkGray),
                         ),
                         pw.SizedBox(height: 4),
                         pw.Text(
-                          '${dataIzin.length}',
+                          '${pdfData.length}',
                           style: pw.TextStyle(
                             fontSize: 24,
                             fontWeight: pw.FontWeight.bold,
@@ -241,7 +347,7 @@ class _IzinKaryawanPageState extends State<IzinKaryawanPage> {
                         ),
                         pw.SizedBox(height: 4),
                         pw.Text(
-                          '${dataIzin.where((izin) => izin.status.toLowerCase() == 'diterima' || izin.status.toLowerCase() == 'approved').length}',
+                          '${pdfData.where((izin) => izin.status.toLowerCase() == 'diterima' || izin.status.toLowerCase() == 'approved').length}',
                           style: pw.TextStyle(
                             fontSize: 24,
                             fontWeight: pw.FontWeight.bold,
@@ -273,7 +379,7 @@ class _IzinKaryawanPageState extends State<IzinKaryawanPage> {
                         ),
                         pw.SizedBox(height: 4),
                         pw.Text(
-                          '${dataIzin.where((izin) => izin.status.toLowerCase() == 'ditolak' || izin.status.toLowerCase() == 'rejected').length}',
+                          '${pdfData.where((izin) => izin.status.toLowerCase() == 'ditolak' || izin.status.toLowerCase() == 'rejected').length}',
                           style: pw.TextStyle(
                             fontSize: 24,
                             fontWeight: pw.FontWeight.bold,
@@ -305,7 +411,7 @@ class _IzinKaryawanPageState extends State<IzinKaryawanPage> {
                         ),
                         pw.SizedBox(height: 4),
                         pw.Text(
-                          '${dataIzin.where((izin) => izin.status.toLowerCase() == 'pending').length}',
+                          '${pdfData.where((izin) => izin.status.toLowerCase() == 'pending').length}',
                           style: pw.TextStyle(
                             fontSize: 24,
                             fontWeight: pw.FontWeight.bold,
@@ -325,7 +431,7 @@ class _IzinKaryawanPageState extends State<IzinKaryawanPage> {
             pw.Container(
               padding: const pw.EdgeInsets.only(bottom: 16),
               child: pw.Text(
-                'Detail Ajuan Izin Karyawan',
+                'Detail Ajuan Izin Karyawan${selectedFilter != 'Semua' ? ' - $selectedFilter' : ''}',
                 style: pw.TextStyle(
                   fontSize: 18,
                   fontWeight: pw.FontWeight.bold,
@@ -334,67 +440,79 @@ class _IzinKaryawanPageState extends State<IzinKaryawanPage> {
               ),
             ),
 
-            // Modern Table
-            pw.Container(
-              decoration: pw.BoxDecoration(
-                borderRadius: pw.BorderRadius.circular(12),
-                border: pw.Border.all(color: mediumGray),
-              ),
-              child: pw.Table(
-                columnWidths: {
-                  0: const pw.FlexColumnWidth(0.5),
-                  1: const pw.FlexColumnWidth(1.5),
-                  2: const pw.FlexColumnWidth(1.2),
-                  3: const pw.FlexColumnWidth(2),
-                  4: const pw.FlexColumnWidth(1.2),
-                  5: const pw.FlexColumnWidth(1.2),
-                  6: const pw.FlexColumnWidth(1),
-                },
-                children: [
-                  // Modern Header
-                  pw.TableRow(
-                    decoration: pw.BoxDecoration(
-                      color: primaryColor,
-                      borderRadius: const pw.BorderRadius.only(
-                        topLeft: pw.Radius.circular(12),
-                        topRight: pw.Radius.circular(12),
-                      ),
-                    ),
-                    children: [
-                      _buildTableHeader('No'),
-                      _buildTableHeader('Nama Karyawan'),
-                      _buildTableHeader('Tipe Izin'),
-                      _buildTableHeader('Deskripsi'),
-                      _buildTableHeader('Tanggal Mulai'),
-                      _buildTableHeader('Tanggal Akhir'),
-                      _buildTableHeader('Status'),
-                    ],
+            // Show message if no data after filtering
+            if (pdfData.isEmpty)
+              pw.Container(
+                padding: const pw.EdgeInsets.all(32),
+                child: pw.Center(
+                  child: pw.Text(
+                    'Tidak ada data untuk filter: $selectedFilter',
+                    style: pw.TextStyle(fontSize: 14, color: darkGray),
                   ),
-
-                  // Data rows with alternating colors
-                  ...dataIzin.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final izin = entry.value;
-                    final isEven = index % 2 == 0;
-
-                    return pw.TableRow(
+                ),
+              )
+            else
+              // Modern Table with filtered data
+              pw.Container(
+                decoration: pw.BoxDecoration(
+                  borderRadius: pw.BorderRadius.circular(12),
+                  border: pw.Border.all(color: mediumGray),
+                ),
+                child: pw.Table(
+                  columnWidths: {
+                    0: const pw.FlexColumnWidth(0.5),
+                    1: const pw.FlexColumnWidth(1.5),
+                    2: const pw.FlexColumnWidth(1.2),
+                    3: const pw.FlexColumnWidth(2),
+                    4: const pw.FlexColumnWidth(1.2),
+                    5: const pw.FlexColumnWidth(1.2),
+                    6: const pw.FlexColumnWidth(1),
+                  },
+                  children: [
+                    // Modern Header
+                    pw.TableRow(
                       decoration: pw.BoxDecoration(
-                        color: isEven ? PdfColors.white : lightGray,
+                        color: primaryColor,
+                        borderRadius: const pw.BorderRadius.only(
+                          topLeft: pw.Radius.circular(12),
+                          topRight: pw.Radius.circular(12),
+                        ),
                       ),
                       children: [
-                        _buildTableCell('${index + 1}', isCenter: true),
-                        _buildTableCell(izin.nama),
-                        _buildTableCell(izin.tipeIzin),
-                        _buildTableCell(izin.deskripsi, maxLines: 3),
-                        _buildTableCell(izin.tanggalMulai, isCenter: true),
-                        _buildTableCell(izin.tanggalAkhir, isCenter: true),
-                        _buildStatusCell(izin.status),
+                        _buildTableHeader('No'),
+                        _buildTableHeader('Nama Karyawan'),
+                        _buildTableHeader('Tipe Izin'),
+                        _buildTableHeader('Deskripsi'),
+                        _buildTableHeader('Tanggal Mulai'),
+                        _buildTableHeader('Tanggal Akhir'),
+                        _buildTableHeader('Status'),
                       ],
-                    );
-                  }).toList(),
-                ],
+                    ),
+
+                    // Data rows with alternating colors (using filtered data)
+                    ...pdfData.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final izin = entry.value;
+                      final isEven = index % 2 == 0;
+
+                      return pw.TableRow(
+                        decoration: pw.BoxDecoration(
+                          color: isEven ? PdfColors.white : lightGray,
+                        ),
+                        children: [
+                          _buildTableCell('${index + 1}', isCenter: true),
+                          _buildTableCell(izin.nama),
+                          _buildTableCell(izin.tipeIzin),
+                          _buildTableCell(izin.deskripsi, maxLines: 3),
+                          _buildTableCell(izin.tanggalMulai, isCenter: true),
+                          _buildTableCell(izin.tanggalAkhir, isCenter: true),
+                          _buildStatusCell(izin.status),
+                        ],
+                      );
+                    }).toList(),
+                  ],
+                ),
               ),
-            ),
           ];
         },
       ),
@@ -584,130 +702,196 @@ class _IzinKaryawanPageState extends State<IzinKaryawanPage> {
               )
               : Column(
                 children: [
+                  // Filter Section
+                  _buildFilterSection(),
+
+                  // Divider
+                  Container(height: 1, color: Colors.grey.shade200),
+
+                  // List Content
                   Expanded(
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: dataIzin.length,
-                      itemBuilder: (context, index) {
-                        final izin = dataIzin[index];
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.black, width: 1),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                _buildStatusIcon(izin.status),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              izin.nama,
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                                color: Colors.black,
-                                              ),
-                                            ),
-                                          ),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.grey.shade100,
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                              border: Border.all(
-                                                color: Colors.black,
-                                                width: 1,
-                                              ),
-                                            ),
-                                            child: Text(
-                                              _getStatusText(izin.status),
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
-                                                color: Colors.black,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        izin.tipeIzin,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey.shade600,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      SizedBox(
-                                        width: double.infinity,
-                                        child: ElevatedButton(
-                                          onPressed: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder:
-                                                    (context) =>
-                                                        AdminPengajuanIzinDetailKaryawan(
-                                                          izinId: izin.id,
-                                                        ),
-                                              ),
-                                            );
-                                          },
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.black,
-                                            foregroundColor: Colors.white,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                            ),
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: 8,
-                                            ),
-                                          ),
-                                          child: const Text(
-                                            'Lihat Detail',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                    child:
+                        filteredDataIzin.isEmpty
+                            ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.filter_alt_off,
+                                    size: 64,
+                                    color: Colors.grey.shade400,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Tidak ada data untuk filter "$selectedFilter"',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextButton(
+                                    onPressed: () => _onFilterChanged('Semua'),
+                                    child: const Text(
+                                      'Tampilkan Semua',
+                                      style: TextStyle(
+                                        color: Colors.black,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                            : ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: filteredDataIzin.length,
+                              itemBuilder: (context, index) {
+                                final izin = filteredDataIzin[index];
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.black,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Row(
+                                      children: [
+                                        _buildStatusIcon(izin.status),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      izin.nama,
+                                                      style: const TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: Colors.black,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 4,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color:
+                                                          Colors.grey.shade100,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            12,
+                                                          ),
+                                                      border: Border.all(
+                                                        color: Colors.black,
+                                                        width: 1,
+                                                      ),
+                                                    ),
+                                                    child: Text(
+                                                      _getStatusText(
+                                                        izin.status,
+                                                      ),
+                                                      style: const TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                        color: Colors.black,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                izin.tipeIzin,
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: Colors.grey.shade600,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              SizedBox(
+                                                width: double.infinity,
+                                                child: ElevatedButton(
+                                                  onPressed: () {
+                                                    Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder:
+                                                            (context) =>
+                                                                AdminPengajuanIzinDetailKaryawan(
+                                                                  izinId:
+                                                                      izin.id,
+                                                                ),
+                                                      ),
+                                                    );
+                                                  },
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor:
+                                                        Colors.black,
+                                                    foregroundColor:
+                                                        Colors.white,
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8,
+                                                          ),
+                                                    ),
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          vertical: 8,
+                                                        ),
+                                                  ),
+                                                  child: const Text(
+                                                    'Lihat Detail',
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
-                          ),
-                        );
-                      },
-                    ),
                   ),
                 ],
               ),
       floatingActionButton:
           dataIzin.isNotEmpty
-              ? FloatingActionButton(
+              ? FloatingActionButton.extended(
                 onPressed: _generatePDF,
                 backgroundColor: Colors.black,
                 foregroundColor: Colors.white,
-                child: const Icon(Icons.picture_as_pdf),
+                icon: const Icon(Icons.picture_as_pdf),
+                label: Text(
+                  selectedFilter == 'Semua'
+                      ? 'Export PDF'
+                      : 'Export PDF ($selectedFilter)',
+                  style: const TextStyle(fontSize: 12),
+                ),
               )
               : null,
     );

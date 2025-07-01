@@ -5,9 +5,13 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 class AdminUlasanProdukDetail extends StatefulWidget {
-  final String productId;
+  final String productId, productName;
 
-  const AdminUlasanProdukDetail({super.key, required this.productId});
+  const AdminUlasanProdukDetail({
+    super.key,
+    required this.productId,
+    required this.productName,
+  });
 
   @override
   State<AdminUlasanProdukDetail> createState() =>
@@ -109,9 +113,13 @@ class _AdminUlasanProdukDetailState extends State<AdminUlasanProdukDetail> {
                   ),
                   pw.SizedBox(height: 8),
                   pw.Text(
-                    'Product ID: ${widget.productId}',
-                    style: pw.TextStyle(fontSize: 12),
+                    '${widget.productName}',
+                    style: pw.TextStyle(
+                      fontSize: 14,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
                   ),
+                  pw.SizedBox(height: 8),
                   pw.Text(
                     'Tanggal Cetak: ${DateTime.now().toString().split(' ')[0]}',
                     style: pw.TextStyle(fontSize: 10),

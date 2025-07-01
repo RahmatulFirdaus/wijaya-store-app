@@ -760,6 +760,7 @@ class Faktur {
   final String id;
   final String namaPengguna;
   final String alamatPengiriman;
+  final String status;
   final List<FakturItem> items;
 
   Faktur({
@@ -768,6 +769,7 @@ class Faktur {
     required this.id,
     required this.namaPengguna,
     required this.alamatPengiriman,
+    required this.status,
     required this.items,
   });
 
@@ -782,6 +784,7 @@ class Faktur {
       id: json['id']?.toString() ?? '',
       namaPengguna: json['nama_pengguna']?.toString() ?? '',
       alamatPengiriman: json['alamat_pengiriman']?.toString() ?? '',
+      status: json['status']?.toString() ?? '',
       items: itemList,
     );
   }

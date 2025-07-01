@@ -402,7 +402,10 @@ class ReviewProductCard extends StatelessWidget {
             context,
             MaterialPageRoute(
               builder:
-                  (context) => AdminUlasanProdukDetail(productId: product.id),
+                  (context) => AdminUlasanProdukDetail(
+                    productId: product.id,
+                    productName: product.nama_produk,
+                  ),
             ),
           );
         },
@@ -525,6 +528,7 @@ class ReviewProductCard extends StatelessWidget {
                                   builder:
                                       (context) => AdminUlasanProdukDetail(
                                         productId: product.id,
+                                        productName: product.nama_produk,
                                       ),
                                 ),
                               );
