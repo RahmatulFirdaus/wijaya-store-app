@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:frontend/models/admin_model.dart';
 import 'package:frontend/pages/admin_pages/list_chat_pembeli.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_karyawan_pages/admin_absensi_karyawan.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_karyawan_pages/admin_pengajuan_izin_karyawan.dart';
@@ -85,6 +86,8 @@ class _MainAdminState extends State<MainAdmin> {
   String _searchQuery = '';
   int _restockCount = 0;
   bool _isLoadingRestockData = true;
+  int _verifikasiCount = 0;
+  bool _isLoadingVerifikasiData = true;
 
   // Organized menu items by categories
   late List<MenuCategory> _menuCategories;
@@ -109,7 +112,35 @@ class _MainAdminState extends State<MainAdmin> {
   void initState() {
     super.initState();
     _loadRestockData();
+    _loadVerifikasiData();
     _initializeMenuCategories();
+  }
+
+  Future<void> _refreshData() async {
+    setState(() {
+      _isLoadingRestockData = true;
+      _isLoadingVerifikasiData = true;
+    });
+
+    await Future.wait([_loadRestockData(), _loadVerifikasiData()]);
+  }
+
+  Future<void> _loadVerifikasiData() async {
+    try {
+      final verifikasi = await JumlahVerifikasi.getJumlahPending();
+      setState(() {
+        _verifikasiCount = verifikasi?.jumlahPending ?? 0;
+        _isLoadingVerifikasiData = false;
+      });
+      // Reinitialize menu categories with updated verifikasi count
+      _initializeMenuCategories();
+    } catch (e) {
+      setState(() {
+        _verifikasiCount = 0;
+        _isLoadingVerifikasiData = false;
+      });
+      _initializeMenuCategories();
+    }
   }
 
   Future<void> _loadRestockData() async {
@@ -127,6 +158,47 @@ class _MainAdminState extends State<MainAdmin> {
         _isLoadingRestockData = false;
       });
       _initializeMenuCategories();
+    }
+
+    // Juga reload verifikasi data
+    _loadVerifikasiData();
+  }
+
+  Map<String, dynamic> _getVerifikasiStyle() {
+    if (_verifikasiCount == 0) {
+      return {
+        'color': const Color(0xFF4CAF50),
+        'gradient': const LinearGradient(
+          colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        'isUrgent': false,
+        'statusText': 'Tidak Ada',
+      };
+    } else if (_verifikasiCount <= 5) {
+      return {
+        'color': const Color(0xFFFF9800),
+        'gradient': const LinearGradient(
+          colors: [Color(0xFFFF9800), Color(0xFFFFB74D)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        'isUrgent': false,
+        'statusText': '$_verifikasiCount Akun',
+      };
+    } else {
+      return {
+        'color': const Color(0xFFE53E3E),
+        'gradient': const LinearGradient(
+          colors: [Color(0xFFE53E3E), Color(0xFFFF6B6B)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        'isUrgent': true,
+        'statusText':
+            _verifikasiCount > 99 ? '99+ Akun' : '$_verifikasiCount Akun',
+      };
     }
   }
 
@@ -171,6 +243,7 @@ class _MainAdminState extends State<MainAdmin> {
 
   void _initializeMenuCategories() {
     final restockStyle = _getRestockStyle();
+    final verifikasiStyle = _getVerifikasiStyle();
 
     _menuCategories = [
       // Karyawan Management
@@ -408,12 +481,13 @@ class _MainAdminState extends State<MainAdmin> {
           AdminMenuItem(
             title: 'Akun',
             icon: Icons.account_circle_rounded,
-            color: const Color(0xFF66BB6A),
-            gradient: const LinearGradient(
-              colors: [Color(0xFF66BB6A), Color(0xFF4CAF50)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: verifikasiStyle['color'], // Ganti dari static color
+            gradient: verifikasiStyle['gradient'], // Ganti dari static gradient
+            isUrgent: verifikasiStyle['isUrgent'], // Tambahkan ini
+            notificationCount: _verifikasiCount, // Tambahkan ini
+            notificationText: verifikasiStyle['statusText'], // Tambahkan ini
+            showNotification: true, // Tambahkan ini
+            isLoading: _isLoadingVerifikasiData, // Tambahkan ini
             onTap:
                 (context) => _navigateToPage(context, const AdminLobbyAkun()),
           ),
@@ -481,6 +555,24 @@ class _MainAdminState extends State<MainAdmin> {
       pinned: true,
       elevation: 0,
       backgroundColor: Colors.transparent,
+      // TAMBAHKAN LEADING UNTUK TOMBOL REFRESH
+      leading: Padding(
+        padding: const EdgeInsets.only(left: 16),
+        child: IconButton(
+          onPressed: _refreshData,
+          icon: const Icon(
+            Icons.refresh_rounded,
+            size: 26,
+            color: Colors.white,
+          ),
+          style: IconButton.styleFrom(
+            backgroundColor: Colors.white.withOpacity(0.2),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ),
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           decoration: const BoxDecoration(

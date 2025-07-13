@@ -7,6 +7,46 @@ import 'package:mime/mime.dart';
 import 'dart:async';
 
 //CLASS GET
+class JumlahVerifikasi {
+  final int jumlahPending;
+
+  JumlahVerifikasi({required this.jumlahPending});
+
+  // Factory constructor untuk parsing JSON
+  factory JumlahVerifikasi.fromJson(Map<String, dynamic> json) {
+    return JumlahVerifikasi(jumlahPending: json['jumlah_pending'] ?? 0);
+  }
+
+  // Fungsi untuk ambil data dari API
+  static Future<JumlahVerifikasi?> getJumlahPending() async {
+    final url = Uri.parse(
+      'http://192.168.1.96:3000/api/adminTampilJumlahVerifikasiAkun',
+    );
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final jsonData = jsonDecode(response.body);
+
+        // Pastikan format data sesuai dan tidak kosong
+        if (jsonData['data'] != null && jsonData['data'].isNotEmpty) {
+          return JumlahVerifikasi.fromJson(jsonData['data'][0]);
+        } else {
+          return null;
+        }
+      } else {
+        throw Exception('Gagal mengambil data: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Terjadi kesalahan: $e');
+    }
+  }
+}
+
 class IDOrderan {
   final int id;
   final String statusPengiriman;
