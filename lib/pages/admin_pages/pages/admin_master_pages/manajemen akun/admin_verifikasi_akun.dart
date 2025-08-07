@@ -69,12 +69,6 @@ class _AdminVerifikasiAkunState extends State<AdminVerifikasiAkun> {
                   user.nama,
                   style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
                 ),
-                // Tambahkan info ID untuk debugging
-                const SizedBox(height: 4),
-                Text(
-                  'ID: ${user.id}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                ),
                 const SizedBox(height: 24),
                 Row(
                   children: [
@@ -384,14 +378,6 @@ class _AdminVerifikasiAkunState extends State<AdminVerifikasiAkun> {
                                     style: TextStyle(
                                       fontSize: 14,
                                       color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                  // Tampilkan ID untuk debugging
-                                  Text(
-                                    'ID: ${user.id}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade500,
                                     ),
                                   ),
                                 ],
