@@ -75,7 +75,7 @@ class _LobbyPengajuanIzinState extends State<LobbyPengajuanIzin> {
   Color getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'approved':
-      case 'disetujui':
+      case 'diterima':
         return Colors.green;
       case 'pending':
       case 'menunggu':
@@ -91,7 +91,7 @@ class _LobbyPengajuanIzinState extends State<LobbyPengajuanIzin> {
   IconData getStatusIcon(String status) {
     switch (status.toLowerCase()) {
       case 'approved':
-      case 'disetujui':
+      case 'diterima':
         return Icons.check_circle;
       case 'pending':
       case 'menunggu':

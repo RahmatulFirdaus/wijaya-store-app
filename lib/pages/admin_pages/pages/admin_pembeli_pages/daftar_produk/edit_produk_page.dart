@@ -90,14 +90,18 @@ class _EditProdukPageState extends State<EditProdukPage> {
       _hargaProdukController.text = _produkDetail!.harga;
       _hargaAwalController.text = _produkDetail!.hargaAwal;
 
-      // Convert varian ke EditVarianProduk
+      // Convert varian ke EditVarianProduk dengan struktur baru
       _varianList =
           _produkDetail!.varian.map((varian) {
             return EditVarianProduk(
               id: varian.id,
               warna: varian.warna,
-              ukuran: varian.ukuran,
-              stok: varian.stok,
+              ukuranList: [
+                UkuranVarian(
+                  ukuran: varian.ukuran.toString(),
+                  stok: varian.stok,
+                ),
+              ], // Convert ke List
               linkGambarVarian: varian.linkGambarVarian,
               isExisting: true,
             );
@@ -452,14 +456,9 @@ class _EditProdukPageState extends State<EditProdukPage> {
 
       for (int i = 0; i < _varianList.length; i++) {
         var varian = _varianList[i];
-
-        // Set has_new_image dengan benar
         bool hasNewImage = varian.gambarVarianFile != null;
-
-        // PERBAIKAN UTAMA: Pastikan ID varian tidak null untuk existing
         int? varianId = varian.isExisting ? varian.id : null;
 
-        // VALIDASI KHUSUS: Jika existing tapi ID null, skip atau beri warning
         if (varian.isExisting && varianId == null) {
           print(
             "⚠️ WARNING: Varian existing '${varian.warna}' tidak memiliki ID yang valid!",
@@ -471,14 +470,17 @@ class _EditProdukPageState extends State<EditProdukPage> {
           return;
         }
 
-        varianData.add({
-          'id_varian': varianId,
-          'warna': varian.warna,
-          'ukuran': varian.ukuran,
-          'stok': varian.stok,
-          'is_new': !varian.isExisting,
-          'has_new_image': hasNewImage,
-        });
+        // Convert setiap ukuran dalam varian
+        for (var ukuran in varian.ukuranList) {
+          varianData.add({
+            'id_varian': varianId,
+            'warna': varian.warna,
+            'ukuran': int.parse(ukuran.ukuran), // Convert string ke int
+            'stok': ukuran.stok,
+            'is_new': !varian.isExisting,
+            'has_new_image': hasNewImage,
+          });
+        }
       }
 
       // Debug logging yang lebih detail
@@ -972,16 +974,15 @@ class _EditProdukPageState extends State<EditProdukPage> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.grey.withOpacity(0.3)),
               ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.all(16),
+              child: ExpansionTile(
                 leading:
                     varian.gambarVarianFile != null
                         ? ClipRRect(
                           borderRadius: BorderRadius.circular(6),
                           child: Image.file(
                             varian.gambarVarianFile!,
-                            width: 60,
-                            height: 60,
+                            width: 50,
+                            height: 50,
                             fit: BoxFit.cover,
                           ),
                         )
@@ -990,13 +991,13 @@ class _EditProdukPageState extends State<EditProdukPage> {
                           borderRadius: BorderRadius.circular(6),
                           child: Image.network(
                             '$baseUrl${varian.linkGambarVarian}',
-                            width: 60,
-                            height: 60,
+                            width: 50,
+                            height: 50,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) {
                               return Container(
-                                width: 60,
-                                height: 60,
+                                width: 50,
+                                height: 50,
                                 decoration: BoxDecoration(
                                   color: Colors.grey.withOpacity(0.3),
                                   borderRadius: BorderRadius.circular(6),
@@ -1010,8 +1011,8 @@ class _EditProdukPageState extends State<EditProdukPage> {
                           ),
                         )
                         : Container(
-                          width: 60,
-                          height: 60,
+                          width: 50,
+                          height: 50,
                           decoration: BoxDecoration(
                             color: Colors.grey.withOpacity(0.3),
                             borderRadius: BorderRadius.circular(6),
@@ -1021,22 +1022,17 @@ class _EditProdukPageState extends State<EditProdukPage> {
                             color: Colors.grey,
                           ),
                         ),
-                title: Text(
-                  'Warna: ${varian.warna}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                title: Row(
                   children: [
-                    const SizedBox(height: 4),
-                    Text(
-                      'Ukuran: ${varian.ukuran} | Stok: ${varian.stok}',
-                      style: const TextStyle(color: Colors.grey),
+                    Expanded(
+                      child: Text(
+                        'Warna: ${varian.warna}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
@@ -1060,6 +1056,10 @@ class _EditProdukPageState extends State<EditProdukPage> {
                     ),
                   ],
                 ),
+                subtitle: Text(
+                  '${varian.ukuranList.length} ukuran tersedia',
+                  style: const TextStyle(color: Colors.grey),
+                ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -1075,6 +1075,33 @@ class _EditProdukPageState extends State<EditProdukPage> {
                     ),
                   ],
                 ),
+                children:
+                    varian.ukuranList.map((ukuran) {
+                      return Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 2,
+                        ),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2A2A2A),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Ukuran: ${ukuran.ukuran}',
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            Text(
+                              'Stok: ${ukuran.stok}',
+                              style: const TextStyle(color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
               ),
             );
           }).toList(),
@@ -1119,8 +1146,8 @@ class _EditProdukPageState extends State<EditProdukPage> {
 class EditVarianProduk {
   int? id;
   String warna;
-  int ukuran;
-  int stok;
+  List<UkuranVarian>
+  ukuranList; // Ubah dari int ukuran menjadi List<UkuranVarian>
   String linkGambarVarian;
   File? gambarVarianFile;
   bool isExisting;
@@ -1128,8 +1155,7 @@ class EditVarianProduk {
   EditVarianProduk({
     this.id,
     required this.warna,
-    required this.ukuran,
-    required this.stok,
+    required this.ukuranList, // Update parameter
     this.linkGambarVarian = '',
     this.gambarVarianFile,
     this.isExisting = false,
@@ -1163,27 +1189,23 @@ class _DialogTambahEditVarianState extends State<_DialogTambahEditVarian> {
   static const String baseUrl = 'http://192.168.1.96:3000/uploads/';
 
   final TextEditingController _warnaController = TextEditingController();
-  final TextEditingController _ukuranController = TextEditingController();
-  final TextEditingController _stokController = TextEditingController();
   File? _gambarVarian;
   String _linkGambarLama = '';
+  List<UkuranVarian> _ukuranList = [];
 
   @override
   void initState() {
     super.initState();
     if (widget.existingVarian != null) {
       _warnaController.text = widget.existingVarian!.warna;
-      _ukuranController.text = widget.existingVarian!.ukuran.toString();
-      _stokController.text = widget.existingVarian!.stok.toString();
       _linkGambarLama = widget.existingVarian!.linkGambarVarian;
+      _ukuranList = List.from(widget.existingVarian!.ukuranList);
     }
   }
 
   @override
   void dispose() {
     _warnaController.dispose();
-    _ukuranController.dispose();
-    _stokController.dispose();
     super.dispose();
   }
 
@@ -1204,6 +1226,47 @@ class _DialogTambahEditVarianState extends State<_DialogTambahEditVarian> {
     } catch (e) {
       _showErrorToast('Gagal memilih gambar: $e');
     }
+  }
+
+  void _tambahUkuran() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => _DialogTambahUkuranEdit(
+            existingSizes:
+                _ukuranList.map((u) => u.ukuran.toLowerCase().trim()).toList(),
+            onTambahUkuran: (ukuranVarian) {
+              setState(() {
+                // Cek apakah ukuran sudah ada
+                final existingIndex = _ukuranList.indexWhere(
+                  (existing) =>
+                      existing.ukuran.toLowerCase().trim() ==
+                      ukuranVarian.ukuran.toLowerCase().trim(),
+                );
+
+                if (existingIndex != -1) {
+                  // Jika ukuran sudah ada, tambahkan stok ke ukuran yang sudah ada
+                  _ukuranList[existingIndex] = UkuranVarian(
+                    ukuran: _ukuranList[existingIndex].ukuran,
+                    stok: _ukuranList[existingIndex].stok + ukuranVarian.stok,
+                  );
+                  _showToast(
+                    'Stok ukuran ${_ukuranList[existingIndex].ukuran} ditambahkan. Total: ${_ukuranList[existingIndex].stok}',
+                  );
+                } else {
+                  // Jika ukuran belum ada, tambahkan ukuran baru
+                  _ukuranList.add(ukuranVarian);
+                }
+              });
+            },
+          ),
+    );
+  }
+
+  void _hapusUkuran(int index) {
+    setState(() {
+      _ukuranList.removeAt(index);
+    });
   }
 
   void _showToast(String message) {
@@ -1235,17 +1298,24 @@ class _DialogTambahEditVarianState extends State<_DialogTambahEditVarian> {
       return;
     }
 
-    // PERBAIKAN: Validasi gambar untuk varian baru
-    if (widget.existingVarian == null && _gambarVarian == null) {
+    // Validasi gambar untuk varian baru
+    if (widget.existingVarian == null &&
+        _gambarVarian == null &&
+        _linkGambarLama.isEmpty) {
       _showErrorToast('Varian baru harus memiliki gambar');
+      return;
+    }
+
+    // Validasi ukuran minimal 1
+    if (_ukuranList.isEmpty) {
+      _showErrorToast('Minimal harus ada 1 ukuran untuk varian ini');
       return;
     }
 
     final varian = EditVarianProduk(
       id: widget.existingVarian?.id,
       warna: _warnaController.text.trim(),
-      ukuran: int.parse(_ukuranController.text),
-      stok: int.parse(_stokController.text),
+      ukuranList: _ukuranList,
       linkGambarVarian: _linkGambarLama,
       gambarVarianFile: _gambarVarian,
       isExisting: widget.existingVarian != null,
@@ -1348,68 +1418,6 @@ class _DialogTambahEditVarianState extends State<_DialogTambahEditVarian> {
                         }
                       }
 
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Input Ukuran
-                  TextFormField(
-                    controller: _ukuranController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      labelText: 'Ukuran',
-                      hintText: 'Contoh: 38, 39, 40',
-                      prefixIcon: Icon(Icons.straighten, color: Colors.grey),
-                      labelStyle: TextStyle(color: Colors.grey),
-                      hintStyle: TextStyle(color: Colors.grey),
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Ukuran tidak boleh kosong';
-                      }
-                      final ukuran = int.tryParse(value);
-                      if (ukuran == null) {
-                        return 'Masukkan angka yang valid';
-                      }
-                      if (ukuran <= 0) {
-                        return 'Ukuran harus lebih dari 0';
-                      }
-                      if (ukuran > 999) {
-                        return 'Ukuran terlalu besar';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Input Stok
-                  TextFormField(
-                    controller: _stokController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      labelText: 'Stok',
-                      hintText: 'Contoh: 10',
-                      prefixIcon: Icon(Icons.inventory, color: Colors.grey),
-                      labelStyle: TextStyle(color: Colors.grey),
-                      hintStyle: TextStyle(color: Colors.grey),
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Stok tidak boleh kosong';
-                      }
-                      final stok = int.tryParse(value);
-                      if (stok == null) {
-                        return 'Masukkan angka yang valid';
-                      }
-                      if (stok < 0) {
-                        return 'Stok tidak boleh negatif';
-                      }
-                      if (stok > 9999) {
-                        return 'Stok maksimal 9999';
-                      }
                       return null;
                     },
                   ),
@@ -1516,6 +1524,100 @@ class _DialogTambahEditVarianState extends State<_DialogTambahEditVarian> {
                               ),
                     ),
                   ),
+                  const SizedBox(height: 20),
+
+                  // Section Ukuran
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Ukuran & Stok *',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: _tambahUkuran,
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Tambah Ukuran'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // List Ukuran
+                  if (_ukuranList.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2A2A2A),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'Belum ada ukuran.\nTambahkan minimal 1 ukuran.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ),
+                    )
+                  else
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 200),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2A2A2A),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                      ),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: _ukuranList.length,
+                        separatorBuilder:
+                            (context, index) => Divider(
+                              color: Colors.grey.withOpacity(0.3),
+                              height: 1,
+                            ),
+                        itemBuilder: (context, index) {
+                          UkuranVarian ukuran = _ukuranList[index];
+                          return ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 4,
+                            ),
+                            title: Text(
+                              'Ukuran: ${ukuran.ukuran}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            subtitle: Text(
+                              'Stok: ${ukuran.stok} pcs',
+                              style: const TextStyle(color: Colors.grey),
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.red,
+                                size: 20,
+                              ),
+                              onPressed: () => _hapusUkuran(index),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+
                   const SizedBox(height: 24),
 
                   // Buttons
@@ -1562,6 +1664,219 @@ class _DialogTambahEditVarianState extends State<_DialogTambahEditVarian> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DialogTambahUkuranEdit extends StatefulWidget {
+  final Function(UkuranVarian) onTambahUkuran;
+  final List<String> existingSizes;
+
+  const _DialogTambahUkuranEdit({
+    required this.onTambahUkuran,
+    required this.existingSizes,
+  });
+
+  @override
+  State<_DialogTambahUkuranEdit> createState() =>
+      _DialogTambahUkuranEditState();
+}
+
+class _DialogTambahUkuranEditState extends State<_DialogTambahUkuranEdit> {
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _ukuranController = TextEditingController();
+  final TextEditingController _stokController = TextEditingController();
+
+  @override
+  void dispose() {
+    _ukuranController.dispose();
+    _stokController.dispose();
+    super.dispose();
+  }
+
+  void _simpanUkuran() {
+    if (_formKey.currentState!.validate()) {
+      final ukuranValue = _ukuranController.text.trim();
+      final stokValue = int.parse(_stokController.text);
+
+      // Cek apakah ukuran sudah ada
+      final normalizedUkuran = ukuranValue.toLowerCase().trim();
+      final isExisting = widget.existingSizes.contains(normalizedUkuran);
+
+      final ukuranVarian = UkuranVarian(ukuran: ukuranValue, stok: stokValue);
+
+      if (isExisting) {
+        // Konfirmasi untuk menambah stok ke ukuran yang sudah ada
+        showDialog(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                backgroundColor: const Color(0xFF1E1E1E),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                title: const Text(
+                  'Ukuran Sudah Ada',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                content: Text(
+                  'Ukuran "$ukuranValue" sudah ada.\nStok akan ditambahkan ke ukuran yang sudah ada.\n\nStok yang akan ditambah: $stokValue',
+                  style: const TextStyle(color: Colors.grey),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text(
+                      'Batal',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context); // Tutup dialog konfirmasi
+                      widget.onTambahUkuran(ukuranVarian);
+                      Navigator.pop(context); // Tutup dialog tambah ukuran
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'Tambah Stok',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+        );
+      } else {
+        // Ukuran baru, langsung tambahkan
+        widget.onTambahUkuran(ukuranVarian);
+        Navigator.pop(context);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      data: ThemeData.dark().copyWith(
+        dialogBackgroundColor: const Color(0xFF1E1E1E),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: const Color(0xFF2A2A2A),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.grey),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.grey),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.white, width: 2),
+          ),
+        ),
+      ),
+      child: AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text(
+          'Tambah Ukuran & Stok',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _ukuranController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Ukuran',
+                  hintText:
+                      widget.existingSizes.isNotEmpty
+                          ? 'Jika ukuran sama, stok akan digabung'
+                          : 'Contoh: S, M, L, XL, 38, 39',
+                  prefixIcon: const Icon(Icons.straighten, color: Colors.grey),
+                  labelStyle: const TextStyle(color: Colors.grey),
+                  hintStyle: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Ukuran tidak boleh kosong';
+                  }
+                  if (value.trim().isEmpty) {
+                    return 'Ukuran tidak boleh hanya spasi';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _stokController,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Stok',
+                  hintText: 'Contoh: 10',
+                  prefixIcon: Icon(Icons.inventory, color: Colors.grey),
+                  labelStyle: TextStyle(color: Colors.grey),
+                  hintStyle: TextStyle(color: Colors.grey),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Stok tidak boleh kosong';
+                  }
+                  final stok = int.tryParse(value);
+                  if (stok == null) {
+                    return 'Masukkan angka yang valid';
+                  }
+                  if (stok < 0) {
+                    return 'Stok tidak boleh negatif';
+                  }
+                  if (stok == 0) {
+                    return 'Stok tidak boleh 0';
+                  }
+                  if (stok > 9999) {
+                    return 'Stok maksimal 9999';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(foregroundColor: Colors.grey),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: _simpanUkuran,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Simpan',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
       ),
     );
   }
