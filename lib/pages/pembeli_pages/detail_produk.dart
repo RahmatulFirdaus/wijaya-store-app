@@ -32,6 +32,19 @@ class _DetailProdukState extends State<DetailProduk> {
     futureUlasan = GetDataUlasan.getDataUlasan(widget.productId);
   }
 
+  void refreshProductData() {
+    setState(() {
+      futureProductDetail = GetDataDetailProduk.getDataDetailProduk(
+        widget.productId,
+      );
+      futureUlasan = GetDataUlasan.getDataUlasan(widget.productId);
+      // Reset selection
+      selectedVariantIndex = null;
+      selectedSize = null;
+      jumlahOrder = 1;
+    });
+  }
+
   // Get unique sizes from all variants
   List<int> getUniqueSizes(List<Varian> variants) {
     final Set<int> sizes = {};
@@ -592,10 +605,111 @@ class _DetailProdukState extends State<DetailProduk> {
                                         .varian[selectedVariantIndex!]
                                         .linkGambarVarian,
                                 fit: BoxFit.contain,
+                                // ✅ TAMBAHKAN ERROR HANDLING
+                                errorBuilder: (context, error, stackTrace) {
+                                  print("Error loading variant image: $error");
+                                  return Container(
+                                    color: Colors.grey.shade100,
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.image_not_supported,
+                                          size: 64,
+                                          color: Colors.grey.shade400,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Gambar tidak tersedia',
+                                          style: TextStyle(
+                                            color: Colors.grey.shade600,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                                // ✅ TAMBAHKAN LOADING BUILDER
+                                loadingBuilder: (
+                                  context,
+                                  child,
+                                  loadingProgress,
+                                ) {
+                                  if (loadingProgress == null) return child;
+                                  return Container(
+                                    color: Colors.grey.shade100,
+                                    child: Center(
+                                      child: CircularProgressIndicator(
+                                        value:
+                                            loadingProgress
+                                                        .expectedTotalBytes !=
+                                                    null
+                                                ? loadingProgress
+                                                        .cumulativeBytesLoaded /
+                                                    loadingProgress
+                                                        .expectedTotalBytes!
+                                                : null,
+                                      ),
+                                    ),
+                                  );
+                                },
                               )
                               : Image.network(
                                 baseUrl + product.linkGambar,
                                 fit: BoxFit.contain,
+                                // ✅ TAMBAHKAN ERROR HANDLING UNTUK GAMBAR UTAMA
+                                errorBuilder: (context, error, stackTrace) {
+                                  print(
+                                    "Error loading main product image: $error",
+                                  );
+                                  return Container(
+                                    color: Colors.grey.shade100,
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.image_not_supported,
+                                          size: 64,
+                                          color: Colors.grey.shade400,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Gambar tidak tersedia',
+                                          style: TextStyle(
+                                            color: Colors.grey.shade600,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                                loadingBuilder: (
+                                  context,
+                                  child,
+                                  loadingProgress,
+                                ) {
+                                  if (loadingProgress == null) return child;
+                                  return Container(
+                                    color: Colors.grey.shade100,
+                                    child: Center(
+                                      child: CircularProgressIndicator(
+                                        value:
+                                            loadingProgress
+                                                        .expectedTotalBytes !=
+                                                    null
+                                                ? loadingProgress
+                                                        .cumulativeBytesLoaded /
+                                                    loadingProgress
+                                                        .expectedTotalBytes!
+                                                : null,
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                     ),
                   ),
@@ -665,6 +779,46 @@ class _DetailProdukState extends State<DetailProduk> {
                                           child: Image.network(
                                             baseUrl + variant.linkGambarVarian,
                                             fit: BoxFit.cover,
+                                            // ✅ TAMBAHKAN ERROR HANDLING UNTUK THUMBNAIL VARIAN
+                                            errorBuilder: (
+                                              context,
+                                              error,
+                                              stackTrace,
+                                            ) {
+                                              print(
+                                                "Error loading variant thumbnail: $error",
+                                              );
+                                              return Container(
+                                                color: Colors.grey.shade200,
+                                                child: Icon(
+                                                  Icons.image_not_supported,
+                                                  size: 24,
+                                                  color: Colors.grey.shade400,
+                                                ),
+                                              );
+                                            },
+                                            // ✅ TAMBAHKAN LOADING BUILDER UNTUK THUMBNAIL
+                                            loadingBuilder: (
+                                              context,
+                                              child,
+                                              loadingProgress,
+                                            ) {
+                                              if (loadingProgress == null)
+                                                return child;
+                                              return Container(
+                                                color: Colors.grey.shade200,
+                                                child: const Center(
+                                                  child: SizedBox(
+                                                    width: 20,
+                                                    height: 20,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                        ),
+                                                  ),
+                                                ),
+                                              );
+                                            },
                                           ),
                                         ),
                                       ),

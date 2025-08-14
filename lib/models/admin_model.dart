@@ -1279,6 +1279,28 @@ class HapusMetodePembayaranService {
   }
 }
 
+class AdminHapusVarianProduk {
+  static Future<String> hapusVarianProduk(String id) async {
+    final url = Uri.parse(
+      'http://192.168.1.96:3000/api/adminDeleteVarianProduk/$id',
+    );
+
+    try {
+      final response = await http.delete(url);
+
+      final body = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return body['pesan'] ?? 'Varian produk berhasil dihapus';
+      } else {
+        return body['pesan'] ?? 'Gagal menghapus varian produk';
+      }
+    } catch (e) {
+      return 'Terjadi kesalahan: $e';
+    }
+  }
+}
+
 //KHUSUS TAMBAH PRODUK
 class PostTambahProduk {
   final String pesan;
@@ -1525,7 +1547,7 @@ class PostUpdateProduk {
     final url = Uri.parse('http://192.168.1.96:3000/api/adminUpdateProduk/$id');
 
     try {
-      final request = http.MultipartRequest('PUT', url);
+      final request = http.MultipartRequest('PATCH', url);
 
       // Set fields
       request.fields['nama_produk'] = namaProduk;
