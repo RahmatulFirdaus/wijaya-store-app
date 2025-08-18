@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/models/pembeli_model.dart';
 import 'package:frontend/pages/admin_pages/main_admin.dart';
 import 'package:frontend/pages/karyawan_pages/main_karyawan.dart';
+import 'package:frontend/pages/lupa_password_pages/lupa_password.dart';
 import 'package:frontend/pages/pembeli_pages/main_pembeli.dart';
 import 'package:frontend/pages/register_page/register_page.dart';
 import 'package:toastification/toastification.dart';
@@ -345,7 +346,43 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                             ),
 
-                            const SizedBox(height: 35),
+                            // Forgot Password Link - Positioned after password field
+                            const SizedBox(height: 12),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder:
+                                          (_) => const ForgotPasswordPage(),
+                                    ),
+                                  );
+                                },
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: Text(
+                                  "Lupa Password?",
+                                  style: TextStyle(
+                                    color: Colors.grey.shade700,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    decoration: TextDecoration.underline,
+                                    decorationColor: Colors.grey.shade700,
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 20),
 
                             // Modern black button with animation
                             TweenAnimationBuilder(
@@ -554,7 +591,10 @@ class _LoginPageState extends State<LoginPage> {
                           ],
                         ),
                       ),
+
                       const SizedBox(height: 20),
+
+                      // Register link
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -587,7 +627,7 @@ class _LoginPageState extends State<LoginPage> {
                         ],
                       ),
 
-                      const SizedBox(height: 30),
+                      const Spacer(),
 
                       // Footer text
                       Center(
@@ -599,6 +639,8 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                       ),
+
+                      const SizedBox(height: 30),
                     ],
                   ),
                 ),

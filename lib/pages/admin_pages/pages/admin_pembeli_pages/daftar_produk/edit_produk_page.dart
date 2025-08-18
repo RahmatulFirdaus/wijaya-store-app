@@ -82,6 +82,24 @@ class _EditProdukPageState extends State<EditProdukPage> {
     }
   }
 
+  void _tambahVarian() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => _DialogTambahVarian(
+            existingColors:
+                _varianList.map((v) => v.warna.toLowerCase().trim()).toList(),
+            onTambahVarian: (varian) {
+              setState(() {
+                _varianList.add(varian);
+              });
+              _showToast('Varian "${varian.warna}" berhasil ditambahkan');
+            },
+          ),
+    );
+  }
+
   // Populate form dengan data yang ada
   void _populateForm() {
     if (_produkDetail != null) {
@@ -235,15 +253,15 @@ class _EditProdukPageState extends State<EditProdukPage> {
       context: context,
       barrierDismissible: false,
       builder:
-          (context) => _DialogEditVarian(
+          (context) => _DialogEditVarianWithImage(
+            // ✅ GANTI DIALOG BARU
             existingVarian: _varianList[index],
             onUpdateVarian: (varian) {
               setState(() {
-                // ✅ PERBAIKI: Pertahankan ID dan flag isNew dari ukuran asli
+                // ✅ PERBAIKI: Update varian dengan gambar baru jika ada
                 List<UkuranVarian> updatedUkuranList = [];
 
                 for (var newUkuran in varian.ukuranList) {
-                  // Cari ukuran yang sama di varian asli untuk mempertahankan ID dan flag
                   UkuranVarian? existingUkuran;
 
                   try {
@@ -257,7 +275,6 @@ class _EditProdukPageState extends State<EditProdukPage> {
                   }
 
                   if (existingUkuran != null) {
-                    // Ukuran sudah ada, pertahankan ID dan flag asli
                     updatedUkuranList.add(
                       UkuranVarian(
                         id: existingUkuran.id,
@@ -267,7 +284,6 @@ class _EditProdukPageState extends State<EditProdukPage> {
                       ),
                     );
                   } else {
-                    // Ukuran baru
                     updatedUkuranList.add(
                       UkuranVarian(
                         id: null,
@@ -283,22 +299,21 @@ class _EditProdukPageState extends State<EditProdukPage> {
                   warna: varian.warna,
                   ukuranList: updatedUkuranList,
                   linkGambarVarian: varian.linkGambarVarian,
-                  gambarVarianFile: varian.gambarVarianFile,
+                  gambarVarianFile:
+                      varian.gambarVarianFile, // ✅ UPDATE GAMBAR BARU
                   isExisting: _varianList[index].isExisting,
                 );
               });
 
               // Debug log
-              print("✅ Varian updated:");
+              print("✅ Varian updated dengan gambar:");
               print("  - Warna: ${_varianList[index].warna}");
               print(
-                "  - Jumlah ukuran: ${_varianList[index].ukuranList.length}",
+                "  - Ada gambar baru: ${_varianList[index].gambarVarianFile != null}",
               );
-              for (var ukuran in _varianList[index].ukuranList) {
-                print(
-                  "    * ${ukuran.ukuran}: ${ukuran.stok} (ID: ${ukuran.id}, isNew: ${ukuran.isNew})",
-                );
-              }
+              print(
+                "  - Link gambar lama: ${_varianList[index].linkGambarVarian}",
+              );
             },
           ),
     );
@@ -509,6 +524,7 @@ class _EditProdukPageState extends State<EditProdukPage> {
       List<int> varianDenganGambarBaru = [];
       for (int i = 0; i < _varianList.length; i++) {
         var varian = _varianList[i];
+        // ✅ PERBAIKAN: Cek gambar varian baru
         if (varian.gambarVarianFile != null) {
           fileList.add(varian.gambarVarianFile!);
           varianDenganGambarBaru.add(i);
@@ -525,16 +541,7 @@ class _EditProdukPageState extends State<EditProdukPage> {
         print("🟣 Video demo baru ditambahkan ke index ${fileList.length - 1}");
       }
 
-      // Validasi file sebelum upload
-      final validasi = PostUpdateProduk.validateFiles(fileList);
-      if (!validasi['valid']) {
-        for (String error in validasi['errors']) {
-          _showToast(error, type: ToastificationType.error);
-        }
-        return;
-      }
-
-      // LANGKAH 3: Convert varian ke format yang dibutuhkan API
+      // ✅ PERBAIKAN: Convert varian ke format yang dibutuhkan API
       List<Map<String, dynamic>> varianData = [];
 
       for (int i = 0; i < _varianList.length; i++) {
@@ -544,14 +551,13 @@ class _EditProdukPageState extends State<EditProdukPage> {
         // Convert setiap ukuran dalam varian
         for (var ukuran in varian.ukuranList) {
           varianData.add({
-            'id_varian': ukuran.id, // ✅ GUNAKAN ID UKURAN, BUKAN ID VARIAN
+            'id_varian': ukuran.id, // ID ukuran
             'warna': varian.warna,
             'ukuran': int.parse(ukuran.ukuran),
             'stok': ukuran.stok,
-            'is_new': ukuran.isNew, // ✅ GUNAKAN FLAG DARI UKURAN
-            'has_new_image': hasNewImage,
-            'action':
-                ukuran.isNew ? 'insert' : 'update', // ✅ TAMBAH FLAG ACTION
+            'is_new': ukuran.isNew,
+            'has_new_image': hasNewImage, // ✅ PERBAIKAN: Flag gambar baru
+            'action': ukuran.isNew ? 'insert' : 'update',
           });
         }
       }
@@ -560,6 +566,7 @@ class _EditProdukPageState extends State<EditProdukPage> {
       print("=== DEBUG SUBMIT DETAIL ===");
       print("Ada gambar utama baru: $adaGambarUtamaBaru");
       print("Varian dengan gambar baru: ${varianDenganGambarBaru.length}");
+      print("Total file yang akan diupload: ${fileList.length}");
 
       for (int i = 0; i < varianData.length; i++) {
         var varian = varianData[i];
@@ -569,7 +576,7 @@ class _EditProdukPageState extends State<EditProdukPage> {
         print("  - Ukuran: ${varian['ukuran']}");
         print("  - Stok: ${varian['stok']}");
         print("  - IsNew: ${varian['is_new']}");
-        print("  - HasNewImage: ${varian['has_new_image']}");
+        print("  - HasNewImage: ${varian['has_new_image']}"); // ✅ LOG INI
       }
 
       // LANGKAH 4: Kirim data ke server
@@ -999,13 +1006,35 @@ class _EditProdukPageState extends State<EditProdukPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Varian Produk *',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: Colors.white,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Varian Produk *',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.white,
+              ),
+            ),
+            // ✅ TAMBAHKAN TOMBOL INI
+            ElevatedButton.icon(
+              onPressed: _tambahVarian,
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Tambah Varian'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
 
@@ -1085,12 +1114,41 @@ class _EditProdukPageState extends State<EditProdukPage> {
                             color: Colors.grey,
                           ),
                         ),
-                title: Text(
-                  'Warna: ${varian.warna}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                  ),
+                title: Row(
+                  children: [
+                    Text(
+                      'Warna: ${varian.warna}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    // ✅ TAMBAHKAN BADGE UNTUK VARIAN BARU
+                    if (!varian.isExisting) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.2),
+                          border: Border.all(
+                            color: Colors.green.withOpacity(0.5),
+                          ),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'BARU',
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 subtitle: Text(
                   '${varian.ukuranList.length} ukuran tersedia',
@@ -1099,13 +1157,11 @@ class _EditProdukPageState extends State<EditProdukPage> {
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // ✅ TAMBAHKAN KEMBALI tombol edit
                     IconButton(
                       icon: const Icon(Icons.edit_outlined, color: Colors.blue),
                       onPressed: () => _editVarian(index),
                       tooltip: 'Edit varian',
                     ),
-                    // ✅ TAMBAHKAN KEMBALI tombol hapus
                     IconButton(
                       icon: const Icon(Icons.delete_outline, color: Colors.red),
                       onPressed: () => _hapusVarian(index),
@@ -1132,9 +1188,38 @@ class _EditProdukPageState extends State<EditProdukPage> {
                               'Ukuran: ${ukuran.ukuran}',
                               style: const TextStyle(color: Colors.white),
                             ),
-                            Text(
-                              'Stok: ${ukuran.stok}',
-                              style: const TextStyle(color: Colors.grey),
+                            Row(
+                              children: [
+                                Text(
+                                  'Stok: ${ukuran.stok}',
+                                  style: const TextStyle(color: Colors.grey),
+                                ),
+                                // ✅ TAMBAHKAN BADGE UNTUK UKURAN BARU
+                                if (ukuran.isNew) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                      vertical: 1,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.withOpacity(0.2),
+                                      border: Border.all(
+                                        color: Colors.blue.withOpacity(0.5),
+                                      ),
+                                      borderRadius: BorderRadius.circular(3),
+                                    ),
+                                    child: const Text(
+                                      'BARU',
+                                      style: TextStyle(
+                                        color: Colors.blue,
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ],
                         ),
@@ -2001,6 +2086,1453 @@ class _DialogEditUkuranState extends State<_DialogEditUkuran> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DialogTambahVarian extends StatefulWidget {
+  final Function(EditVarianProduk) onTambahVarian;
+  final List<String> existingColors;
+
+  const _DialogTambahVarian({
+    required this.onTambahVarian,
+    required this.existingColors,
+  });
+
+  @override
+  State<_DialogTambahVarian> createState() => _DialogTambahVarianState();
+}
+
+class _DialogTambahVarianState extends State<_DialogTambahVarian> {
+  final _formKey = GlobalKey<FormState>();
+  final ImagePicker _picker = ImagePicker();
+  final TextEditingController _warnaController = TextEditingController();
+
+  File? _gambarVarian;
+  List<UkuranVarian> _ukuranList = [];
+
+  @override
+  void dispose() {
+    _warnaController.dispose();
+    super.dispose();
+  }
+
+  void _showToast(
+    String message, {
+    ToastificationType type = ToastificationType.success,
+  }) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor:
+            type == ToastificationType.error
+                ? Colors.red
+                : type == ToastificationType.info
+                ? Colors.blue
+                : Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  Future<void> _pilihGambarVarian() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 80,
+      );
+
+      if (image != null) {
+        setState(() {
+          _gambarVarian = File(image.path);
+        });
+      }
+    } catch (e) {
+      _showToast('Gagal memilih gambar: $e', type: ToastificationType.error);
+    }
+  }
+
+  void _tambahUkuran() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => _DialogTambahUkuranBaru(
+            existingSizes:
+                _ukuranList.map((u) => u.ukuran.toLowerCase().trim()).toList(),
+            onTambahUkuran: (ukuranVarian) {
+              setState(() {
+                // Cek apakah ukuran sudah ada
+                final existingIndex = _ukuranList.indexWhere(
+                  (existing) =>
+                      existing.ukuran.toLowerCase().trim() ==
+                      ukuranVarian.ukuran.toLowerCase().trim(),
+                );
+
+                if (existingIndex != -1) {
+                  // Jika ukuran sudah ada, tambahkan stok ke ukuran yang sudah ada
+                  _ukuranList[existingIndex] = UkuranVarian(
+                    ukuran: _ukuranList[existingIndex].ukuran,
+                    stok: _ukuranList[existingIndex].stok + ukuranVarian.stok,
+                    isNew: true, // Varian baru selalu isNew = true
+                  );
+                  _showToast(
+                    'Stok ukuran ${_ukuranList[existingIndex].ukuran} ditambahkan. Total: ${_ukuranList[existingIndex].stok}',
+                  );
+                } else {
+                  // Jika ukuran belum ada, tambahkan ukuran baru
+                  _ukuranList.add(ukuranVarian);
+                }
+              });
+            },
+          ),
+    );
+  }
+
+  void _editUkuran(int index) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => _DialogEditUkuranBaru(
+            existingUkuran: _ukuranList[index],
+            existingSizes:
+                _ukuranList
+                    .asMap()
+                    .entries
+                    .where((entry) => entry.key != index)
+                    .map((entry) => entry.value.ukuran.toLowerCase().trim())
+                    .toList(),
+            onUpdateUkuran: (ukuranVarian) {
+              setState(() {
+                _ukuranList[index] = ukuranVarian;
+              });
+            },
+          ),
+    );
+  }
+
+  void _hapusUkuran(int index) {
+    if (_ukuranList.length <= 1) {
+      _showToast(
+        'Minimal harus ada 1 ukuran untuk varian ini',
+        type: ToastificationType.error,
+      );
+      return;
+    }
+
+    final ukuran = _ukuranList[index];
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: const Color(0xFF1E1E1E),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text(
+              'Hapus Ukuran',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: Text(
+              'Apakah Anda yakin ingin menghapus ukuran "${ukuran.ukuran}" dengan stok ${ukuran.stok}?',
+              style: const TextStyle(color: Colors.grey),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Batal',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  setState(() {
+                    _ukuranList.removeAt(index);
+                  });
+                  _showToast('Ukuran "${ukuran.ukuran}" dihapus');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'Hapus',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+    );
+  }
+
+  void _simpanVarian() {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (_gambarVarian == null) {
+      _showToast('Gambar varian harus dipilih', type: ToastificationType.error);
+      return;
+    }
+
+    if (_ukuranList.isEmpty) {
+      _showToast(
+        'Minimal harus ada 1 ukuran untuk varian ini',
+        type: ToastificationType.error,
+      );
+      return;
+    }
+
+    // Cek duplikasi warna
+    final normalizedWarna = _warnaController.text.toLowerCase().trim();
+    if (widget.existingColors.contains(normalizedWarna)) {
+      _showToast(
+        'Warna "${_warnaController.text}" sudah ada',
+        type: ToastificationType.error,
+      );
+      return;
+    }
+
+    final varian = EditVarianProduk(
+      warna: _warnaController.text.trim(),
+      ukuranList: _ukuranList,
+      linkGambarVarian: '', // Varian baru belum punya link
+      gambarVarianFile: _gambarVarian,
+      isExisting: false, // Varian baru
+    );
+
+    widget.onTambahVarian(varian);
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      data: ThemeData.dark().copyWith(
+        dialogBackgroundColor: const Color(0xFF1E1E1E),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: const Color(0xFF2A2A2A),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.grey),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.grey),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.white, width: 2),
+          ),
+        ),
+      ),
+      child: Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: SingleChildScrollView(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      const Icon(Icons.add, color: Colors.white, size: 24),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Tambah Varian Baru',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Input Warna
+                  TextFormField(
+                    controller: _warnaController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: 'Warna Varian *',
+                      hintText: 'Contoh: Merah, Biru, Hitam',
+                      prefixIcon: Icon(Icons.palette, color: Colors.grey),
+                      labelStyle: TextStyle(color: Colors.grey),
+                      hintStyle: TextStyle(color: Colors.grey),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Warna tidak boleh kosong';
+                      }
+                      if (value.trim().isEmpty) {
+                        return 'Warna tidak boleh hanya spasi';
+                      }
+                      final normalizedValue = value.toLowerCase().trim();
+                      if (widget.existingColors.contains(normalizedValue)) {
+                        return 'Warna "$value" sudah ada';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Gambar Varian
+                  const Text(
+                    'Gambar Varian *',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: _pilihGambarVarian,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      height: 150,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2A2A2A),
+                        border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child:
+                          _gambarVarian != null
+                              ? ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.file(
+                                  _gambarVarian!,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                              : const Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.add_photo_alternate_outlined,
+                                    size: 48,
+                                    color: Colors.grey,
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Tap untuk memilih gambar varian',
+                                    style: TextStyle(color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Section Ukuran
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Ukuran & Stok *',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: _tambahUkuran,
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Tambah'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // List Ukuran
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 200),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2A2A2A),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                    ),
+                    child:
+                        _ukuranList.isEmpty
+                            ? Container(
+                              height: 60,
+                              child: const Center(
+                                child: Text(
+                                  'Belum ada ukuran. Tap "Tambah" untuk menambah ukuran.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ),
+                            )
+                            : ListView.separated(
+                              shrinkWrap: true,
+                              itemCount: _ukuranList.length,
+                              separatorBuilder:
+                                  (context, index) => Divider(
+                                    color: Colors.grey.withOpacity(0.3),
+                                    height: 1,
+                                  ),
+                              itemBuilder: (context, index) {
+                                UkuranVarian ukuran = _ukuranList[index];
+                                return ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 4,
+                                  ),
+                                  title: Text(
+                                    'Ukuran: ${ukuran.ukuran}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    'Stok: ${ukuran.stok} pcs',
+                                    style: const TextStyle(color: Colors.grey),
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.edit_outlined,
+                                          color: Colors.blue,
+                                          size: 18,
+                                        ),
+                                        onPressed: () => _editUkuran(index),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete_outline,
+                                          color: Colors.red,
+                                          size: 18,
+                                        ),
+                                        onPressed: () => _hapusUkuran(index),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.grey),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text('Batal'),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _simpanVarian,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Simpan Varian',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Dialog untuk tambah ukuran pada varian baru
+class _DialogTambahUkuranBaru extends StatefulWidget {
+  final Function(UkuranVarian) onTambahUkuran;
+  final List<String> existingSizes;
+
+  const _DialogTambahUkuranBaru({
+    required this.onTambahUkuran,
+    required this.existingSizes,
+  });
+
+  @override
+  State<_DialogTambahUkuranBaru> createState() =>
+      _DialogTambahUkuranBaruState();
+}
+
+class _DialogTambahUkuranBaruState extends State<_DialogTambahUkuranBaru> {
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _ukuranController = TextEditingController();
+  final TextEditingController _stokController = TextEditingController();
+
+  @override
+  void dispose() {
+    _ukuranController.dispose();
+    _stokController.dispose();
+    super.dispose();
+  }
+
+  void _simpanUkuran() {
+    if (_formKey.currentState!.validate()) {
+      final ukuranValue = _ukuranController.text.trim();
+      final stokValue = int.parse(_stokController.text);
+
+      // Buat ukuran baru dengan flag isNew = true (untuk varian baru)
+      final ukuranVarian = UkuranVarian(
+        id: null, // ID null untuk ukuran baru
+        ukuran: ukuranValue,
+        stok: stokValue,
+        isNew: true, // Selalu true untuk varian baru
+      );
+
+      final normalizedUkuran = ukuranValue.toLowerCase().trim();
+      final existingIndex = widget.existingSizes.indexOf(normalizedUkuran);
+
+      if (existingIndex != -1) {
+        // Konfirmasi untuk menambah stok ke ukuran yang sudah ada
+        showDialog(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                backgroundColor: const Color(0xFF1E1E1E),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                title: const Text(
+                  'Ukuran Sudah Ada',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                content: Text(
+                  'Ukuran "$ukuranValue" sudah ada.\nStok akan ditambahkan ke ukuran yang sudah ada.\n\nStok yang akan ditambah: $stokValue',
+                  style: const TextStyle(color: Colors.grey),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text(
+                      'Batal',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context); // Tutup dialog konfirmasi
+                      widget.onTambahUkuran(ukuranVarian);
+                      Navigator.pop(context); // Tutup dialog tambah ukuran
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'Tambah Stok',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+        );
+      } else {
+        widget.onTambahUkuran(ukuranVarian);
+        Navigator.pop(context);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      data: ThemeData.dark().copyWith(
+        dialogBackgroundColor: const Color(0xFF1E1E1E),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: const Color(0xFF2A2A2A),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.grey),
+          ),
+        ),
+      ),
+      child: AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text(
+          'Tambah Ukuran & Stok',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _ukuranController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Ukuran',
+                  hintText:
+                      widget.existingSizes.isNotEmpty
+                          ? 'Jika ukuran sama, stok akan digabung'
+                          : 'Contoh: S, M, L, XL, 38, 39',
+                  prefixIcon: const Icon(Icons.straighten, color: Colors.grey),
+                  labelStyle: const TextStyle(color: Colors.grey),
+                  hintStyle: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Ukuran tidak boleh kosong';
+                  }
+                  if (value.trim().isEmpty) {
+                    return 'Ukuran tidak boleh hanya spasi';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _stokController,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Stok',
+                  hintText: 'Contoh: 10',
+                  prefixIcon: Icon(Icons.inventory, color: Colors.grey),
+                  labelStyle: TextStyle(color: Colors.grey),
+                  hintStyle: TextStyle(color: Colors.grey),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Stok tidak boleh kosong';
+                  }
+                  final stok = int.tryParse(value);
+                  if (stok == null) {
+                    return 'Masukkan angka yang valid';
+                  }
+                  if (stok < 0) {
+                    return 'Stok tidak boleh negatif';
+                  }
+                  if (stok == 0) {
+                    return 'Stok tidak boleh 0';
+                  }
+                  if (stok > 9999) {
+                    return 'Stok maksimal 9999';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(foregroundColor: Colors.grey),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: _simpanUkuran,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Simpan',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Dialog untuk edit ukuran pada varian baru
+class _DialogEditUkuranBaru extends StatefulWidget {
+  final Function(UkuranVarian) onUpdateUkuran;
+  final UkuranVarian existingUkuran;
+  final List<String> existingSizes;
+
+  const _DialogEditUkuranBaru({
+    required this.onUpdateUkuran,
+    required this.existingUkuran,
+    required this.existingSizes,
+  });
+
+  @override
+  State<_DialogEditUkuranBaru> createState() => _DialogEditUkuranBaruState();
+}
+
+class _DialogEditUkuranBaruState extends State<_DialogEditUkuranBaru> {
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _ukuranController = TextEditingController();
+  final TextEditingController _stokController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _ukuranController.text = widget.existingUkuran.ukuran;
+    _stokController.text = widget.existingUkuran.stok.toString();
+  }
+
+  @override
+  void dispose() {
+    _ukuranController.dispose();
+    _stokController.dispose();
+    super.dispose();
+  }
+
+  void _simpanUkuran() {
+    if (_formKey.currentState!.validate()) {
+      final ukuranValue = _ukuranController.text.trim();
+      final stokValue = int.parse(_stokController.text);
+
+      // Pertahankan properties dari ukuran asli
+      final ukuranVarian = UkuranVarian(
+        id:
+            widget
+                .existingUkuran
+                .id, // Pertahankan ID asli (biasanya null untuk varian baru)
+        ukuran: ukuranValue,
+        stok: stokValue,
+        isNew:
+            widget
+                .existingUkuran
+                .isNew, // Pertahankan flag asli (biasanya true untuk varian baru)
+      );
+
+      widget.onUpdateUkuran(ukuranVarian);
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      data: ThemeData.dark().copyWith(
+        dialogBackgroundColor: const Color(0xFF1E1E1E),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: const Color(0xFF2A2A2A),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.grey),
+          ),
+        ),
+      ),
+      child: AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text(
+          'Edit Ukuran & Stok',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _ukuranController,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Ukuran',
+                  prefixIcon: Icon(Icons.straighten, color: Colors.grey),
+                  labelStyle: TextStyle(color: Colors.grey),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Ukuran tidak boleh kosong';
+                  }
+                  if (value.trim().isEmpty) {
+                    return 'Ukuran tidak boleh hanya spasi';
+                  }
+
+                  // Cek duplikasi dengan ukuran lain (kecuali dirinya sendiri)
+                  final normalizedValue = value.toLowerCase().trim();
+                  if (widget.existingSizes.contains(normalizedValue)) {
+                    return 'Ukuran "$value" sudah ada dalam varian ini';
+                  }
+
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _stokController,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Stok',
+                  prefixIcon: Icon(Icons.inventory, color: Colors.grey),
+                  labelStyle: TextStyle(color: Colors.grey),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Stok tidak boleh kosong';
+                  }
+                  final stok = int.tryParse(value);
+                  if (stok == null) {
+                    return 'Masukkan angka yang valid';
+                  }
+                  if (stok < 0) {
+                    return 'Stok tidak boleh negatif';
+                  }
+                  if (stok == 0) {
+                    return 'Stok tidak boleh 0';
+                  }
+                  if (stok > 9999) {
+                    return 'Stok maksimal 9999';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(foregroundColor: Colors.grey),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: _simpanUkuran,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Update',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DialogEditVarianWithImage extends StatefulWidget {
+  final Function(EditVarianProduk) onUpdateVarian;
+  final EditVarianProduk existingVarian;
+
+  const _DialogEditVarianWithImage({
+    required this.onUpdateVarian,
+    required this.existingVarian,
+  });
+
+  @override
+  State<_DialogEditVarianWithImage> createState() =>
+      _DialogEditVarianWithImageState();
+}
+
+class _DialogEditVarianWithImageState
+    extends State<_DialogEditVarianWithImage> {
+  final ImagePicker _picker = ImagePicker();
+  static const String baseUrl = 'http://192.168.1.96:3000/uploads/';
+
+  List<UkuranVarian> _ukuranList = [];
+  File? _gambarVarianBaru; // ✅ TAMBAH FIELD UNTUK GAMBAR BARU
+
+  @override
+  void initState() {
+    super.initState();
+    _ukuranList = List.from(widget.existingVarian.ukuranList);
+  }
+
+  // ✅ TAMBAH METHOD UNTUK GANTI GAMBAR VARIAN
+  Future<void> _pilihGambarVarian() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 80,
+      );
+
+      if (image != null) {
+        setState(() {
+          _gambarVarianBaru = File(image.path);
+        });
+        _showToast('Gambar varian baru dipilih');
+      }
+    } catch (e) {
+      _showToast('Gagal memilih gambar: $e', type: ToastificationType.error);
+    }
+  }
+
+  void _showToast(
+    String message, {
+    ToastificationType type = ToastificationType.success,
+  }) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor:
+            type == ToastificationType.error ? Colors.red : Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // Method untuk tambah ukuran (sama seperti sebelumnya)
+  void _tambahUkuran() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => _DialogTambahUkuranEdit(
+            existingSizes:
+                _ukuranList.map((u) => u.ukuran.toLowerCase().trim()).toList(),
+            onTambahUkuran: (ukuranVarian) {
+              setState(() {
+                final existingIndex = _ukuranList.indexWhere(
+                  (existing) =>
+                      existing.ukuran.toLowerCase().trim() ==
+                      ukuranVarian.ukuran.toLowerCase().trim(),
+                );
+
+                if (existingIndex != -1) {
+                  _ukuranList[existingIndex] = UkuranVarian(
+                    ukuran: _ukuranList[existingIndex].ukuran,
+                    stok: _ukuranList[existingIndex].stok + ukuranVarian.stok,
+                  );
+                  _showToast(
+                    'Stok ukuran ${_ukuranList[existingIndex].ukuran} ditambahkan. Total: ${_ukuranList[existingIndex].stok}',
+                  );
+                } else {
+                  _ukuranList.add(ukuranVarian);
+                }
+              });
+            },
+          ),
+    );
+  }
+
+  // Method edit dan hapus ukuran (sama seperti sebelumnya)
+  void _editUkuran(int index) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => _DialogEditUkuran(
+            existingUkuran: _ukuranList[index],
+            existingSizes:
+                _ukuranList
+                    .asMap()
+                    .entries
+                    .where((entry) => entry.key != index)
+                    .map((entry) => entry.value.ukuran.toLowerCase().trim())
+                    .toList(),
+            onUpdateUkuran: (ukuranVarian) {
+              setState(() {
+                _ukuranList[index] = ukuranVarian;
+              });
+            },
+          ),
+    );
+  }
+
+  void _hapusUkuran(int index) {
+    if (_ukuranList.length <= 1) {
+      _showToast(
+        'Minimal harus ada 1 ukuran untuk varian ini',
+        type: ToastificationType.error,
+      );
+      return;
+    }
+
+    final ukuran = _ukuranList[index];
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: const Color(0xFF1E1E1E),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text(
+              'Hapus Ukuran',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: Text(
+              'Apakah Anda yakin ingin menghapus ukuran "${ukuran.ukuran}" dengan stok ${ukuran.stok}?',
+              style: const TextStyle(color: Colors.grey),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Batal',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+
+                  if (ukuran.id != null && !ukuran.isNew) {
+                    try {
+                      _showToast(
+                        'Menghapus ukuran...',
+                        type: ToastificationType.info,
+                      );
+
+                      final result =
+                          await AdminHapusVarianProduk.hapusVarianProduk(
+                            ukuran.id.toString(),
+                          );
+                      print(
+                        "Hasil hapus ukuran ${ukuran.ukuran} (ID: ${ukuran.id}): $result",
+                      );
+
+                      setState(() {
+                        _ukuranList.removeAt(index);
+                      });
+
+                      _showToast('Ukuran "${ukuran.ukuran}" berhasil dihapus');
+                    } catch (e) {
+                      _showToast(
+                        'Gagal menghapus ukuran: $e',
+                        type: ToastificationType.error,
+                      );
+                    }
+                  } else {
+                    setState(() {
+                      _ukuranList.removeAt(index);
+                    });
+                    _showToast('Ukuran "${ukuran.ukuran}" dihapus');
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'Hapus',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+    );
+  }
+
+  void _simpanVarian() {
+    if (_ukuranList.isEmpty) {
+      _showToast(
+        'Minimal harus ada 1 ukuran untuk varian ini',
+        type: ToastificationType.error,
+      );
+      return;
+    }
+
+    // ✅ BUAT VARIAN DENGAN GAMBAR BARU JIKA ADA
+    final varian = EditVarianProduk(
+      warna: widget.existingVarian.warna,
+      ukuranList: _ukuranList,
+      linkGambarVarian: widget.existingVarian.linkGambarVarian,
+      gambarVarianFile: _gambarVarianBaru, // ✅ KIRIM GAMBAR BARU
+      isExisting: true,
+    );
+
+    widget.onUpdateVarian(varian);
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      data: ThemeData.dark().copyWith(
+        dialogBackgroundColor: const Color(0xFF1E1E1E),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: const Color(0xFF2A2A2A),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.grey),
+          ),
+        ),
+      ),
+      child: Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    const Icon(Icons.edit, color: Colors.white, size: 24),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Edit Varian: ${widget.existingVarian.warna}',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // ✅ TAMBAH SECTION GAMBAR VARIAN
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Gambar Varian',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _pilihGambarVarian,
+                      icon: const Icon(Icons.image, size: 18),
+                      label: const Text('Ganti Gambar'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Preview Gambar
+                Container(
+                  height: 120,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2A2A2A),
+                    border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child:
+                      _gambarVarianBaru != null
+                          ? Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.file(
+                                  _gambarVarianBaru!,
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                ),
+                              ),
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withOpacity(0.8),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Text(
+                                    'GAMBAR BARU',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                          : widget.existingVarian.linkGambarVarian.isNotEmpty
+                          ? Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.network(
+                                  '$baseUrl${widget.existingVarian.linkGambarVarian}',
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return const Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.error,
+                                          size: 32,
+                                          color: Colors.red,
+                                        ),
+                                        SizedBox(height: 4),
+                                        Text(
+                                          'Gagal memuat gambar',
+                                          style: TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                              ),
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.withOpacity(0.8),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Text(
+                                    'GAMBAR LAMA',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                          : const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.image_not_supported_outlined,
+                                size: 32,
+                                color: Colors.grey,
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Tidak ada gambar',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Section Ukuran (sama seperti sebelumnya)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Ukuran & Stok',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _tambahUkuran,
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Tambah'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // List Ukuran
+                Container(
+                  constraints: const BoxConstraints(maxHeight: 250),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2A2A2A),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: _ukuranList.length,
+                    separatorBuilder:
+                        (context, index) => Divider(
+                          color: Colors.grey.withOpacity(0.3),
+                          height: 1,
+                        ),
+                    itemBuilder: (context, index) {
+                      UkuranVarian ukuran = _ukuranList[index];
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        title: Text(
+                          'Ukuran: ${ukuran.ukuran}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Stok: ${ukuran.stok} pcs',
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.edit_outlined,
+                                color: Colors.blue,
+                                size: 18,
+                              ),
+                              onPressed: () => _editUkuran(index),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.red,
+                                size: 18,
+                              ),
+                              onPressed: () => _hapusUkuran(index),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: Colors.grey),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text('Batal'),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _simpanVarian,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Update Varian',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
