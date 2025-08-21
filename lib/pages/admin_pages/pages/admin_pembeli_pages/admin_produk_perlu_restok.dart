@@ -13,15 +13,19 @@ class ProdukRestokPage extends StatefulWidget {
 }
 
 class _ProdukRestokPageState extends State<ProdukRestokPage>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   List<ProdukPerluRestok> produkList = [];
+  List<ProdukPerluRestok> filteredProdukList = [];
+  List<String> availableKategori = [];
+  String selectedKategori = 'all';
+  String searchQuery = '';
+
   bool isLoading = true;
   bool hasError = false;
   String errorMessage = '';
-  late AnimationController _fadeController;
-  late AnimationController _slideController;
+
+  late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
@@ -31,43 +35,36 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
   }
 
   void _setupAnimations() {
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-      vsync: this,
-    );
-    _slideController = AnimationController(
+    _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _fadeController, curve: Curves.easeOutCubic),
-    );
-
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
     );
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData({String kategori = 'all'}) async {
     try {
       setState(() {
         isLoading = true;
         hasError = false;
+        selectedKategori = kategori;
       });
 
-      final data = await ProdukPerluRestok.getDataProdukPerluRestok();
+      final result = await ProdukPerluRestok.getDataProdukPerluRestok(
+        kategori: kategori,
+      );
 
       setState(() {
-        produkList = data;
+        produkList = result['produk'];
+        availableKategori = result['kategori'];
+        _applyFilters();
         isLoading = false;
       });
 
-      _fadeController.forward();
-      _slideController.forward();
+      _animationController.forward();
     } catch (e) {
       setState(() {
         hasError = true;
@@ -77,517 +74,82 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
     }
   }
 
-  // Replace your existing _exportToPdf method with this modern version
+  void _applyFilters() {
+    filteredProdukList =
+        produkList.where((produk) {
+          bool matchesSearch =
+              searchQuery.isEmpty ||
+              produk.namaProduk.toLowerCase().contains(
+                searchQuery.toLowerCase(),
+              ) ||
+              produk.warna.toLowerCase().contains(searchQuery.toLowerCase());
+
+          return matchesSearch;
+        }).toList();
+  }
+
+  void _onSearchChanged(String query) {
+    setState(() {
+      searchQuery = query;
+      _applyFilters();
+    });
+  }
+
+  void _onKategoriChanged(String kategori) {
+    if (kategori != selectedKategori) {
+      _loadData(kategori: kategori);
+    }
+  }
+
   Future<void> _exportToPdf() async {
     try {
       final pdf = pw.Document();
       final now = DateTime.now();
-      final lowStockProducts = produkList.where((p) => p.stok < 5).toList();
-      final urgentProducts = produkList.where((p) => p.stok < 3).toList();
+      final urgentProducts =
+          filteredProdukList.where((p) => p.stok < 3).toList();
+      final lowStockProducts =
+          filteredProdukList.where((p) => p.stok < 5).toList();
 
       pdf.addPage(
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
           margin: const pw.EdgeInsets.all(40),
-          build: (pw.Context context) {
-            return [
-              // Modern Header with Gradient-like Effect
-              _buildPdfHeader(now),
-              pw.SizedBox(height: 30),
-
-              // Executive Summary Cards
-              _buildExecutiveSummary(lowStockProducts, urgentProducts),
-              pw.SizedBox(height: 30),
-
-              // Alert Section for Urgent Items
-              if (urgentProducts.isNotEmpty) ...[
-                _buildUrgentAlert(urgentProducts.length),
-                pw.SizedBox(height: 25),
+          build:
+              (pw.Context context) => [
+                _buildPdfHeader(now),
+                pw.SizedBox(height: 20),
+                _buildPdfSummary(lowStockProducts, urgentProducts),
+                pw.SizedBox(height: 20),
+                if (urgentProducts.isNotEmpty)
+                  _buildPdfAlert(urgentProducts.length),
+                pw.SizedBox(height: 20),
+                _buildPdfTable(),
               ],
-
-              // Modern Data Table
-              _buildModernTable(),
-              pw.SizedBox(height: 30),
-            ];
-          },
-          header: (context) => _buildPageHeader(),
-          footer: (context) => _buildPageFooter(context),
+          header: (context) => _buildPdfPageHeader(),
+          footer: (context) => _buildPdfPageFooter(context),
         ),
       );
 
-      await Printing.layoutPdf(
-        onLayout: (PdfPageFormat format) async => pdf.save(),
-      );
-
-      if (mounted) {
-        _showSuccessToast('PDF laporan berhasil diekspor');
-      }
+      await Printing.layoutPdf(onLayout: (format) async => pdf.save());
+      _showToast('PDF berhasil diekspor', ToastificationType.success);
     } catch (e) {
-      if (mounted) {
-        _showErrorToast('Gagal mengekspor PDF: $e');
-      }
+      _showToast('Gagal mengekspor PDF: $e', ToastificationType.error);
     }
   }
 
-  // Modern PDF Header
-  pw.Widget _buildPdfHeader(DateTime now) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(25),
-      decoration: pw.BoxDecoration(
-        gradient: const pw.LinearGradient(
-          colors: [PdfColors.black, PdfColors.grey800],
-          begin: pw.Alignment.topLeft,
-          end: pw.Alignment.bottomRight,
-        ),
-        borderRadius: pw.BorderRadius.circular(15),
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Expanded(
-                flex: 3,
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(
-                      'RESTOCK REPORT',
-                      style: pw.TextStyle(
-                        fontSize: 24,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.white,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    pw.SizedBox(height: 8),
-                    pw.Text(
-                      'Laporan Produk yang Memerlukan Restok',
-                      style: pw.TextStyle(
-                        fontSize: 14,
-                        color: PdfColors.grey300,
-                        fontWeight: pw.FontWeight.normal,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              pw.Expanded(
-                flex: 2,
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.end,
-                  children: [
-                    pw.Container(
-                      padding: const pw.EdgeInsets.symmetric(
-                        horizontal: 15,
-                        vertical: 8,
-                      ),
-                      decoration: pw.BoxDecoration(
-                        color: PdfColors.white,
-                        borderRadius: pw.BorderRadius.circular(20),
-                      ),
-                      child: pw.Text(
-                        '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}',
-                        style: pw.TextStyle(
-                          fontSize: 12,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.black,
-                        ),
-                      ),
-                    ),
-                    pw.SizedBox(height: 10),
-                    pw.Text(
-                      '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} WIB',
-                      style: pw.TextStyle(
-                        fontSize: 11,
-                        color: PdfColors.grey300,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Executive Summary with Modern Cards
-  pw.Widget _buildExecutiveSummary(
-    List<ProdukPerluRestok> lowStock,
-    List<ProdukPerluRestok> urgent,
-  ) {
-    return pw.Row(
-      children: [
-        pw.Expanded(
-          child: _buildSummaryCard(
-            'Total Produk',
-            '${produkList.length}',
-            PdfColors.blue600,
-            PdfColors.blue50,
-          ),
-        ),
-        pw.SizedBox(width: 15),
-        pw.Expanded(
-          child: _buildSummaryCard(
-            'Perlu Restok',
-            '${lowStock.length}',
-            PdfColors.orange600,
-            PdfColors.orange50,
-          ),
-        ),
-        pw.SizedBox(width: 15),
-        pw.Expanded(
-          child: _buildSummaryCard(
-            'Urgent',
-            '${urgent.length}',
-            PdfColors.red600,
-            PdfColors.red50,
-          ),
-        ),
-        pw.SizedBox(width: 15),
-        pw.Expanded(
-          child: _buildSummaryCard(
-            'Status Baik',
-            '${produkList.length - lowStock.length}',
-            PdfColors.green600,
-            PdfColors.green50,
-          ),
-        ),
-      ],
-    );
-  }
-
-  pw.Widget _buildSummaryCard(
-    String title,
-    String value,
-    PdfColor color,
-    PdfColor bgColor,
-  ) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(20),
-      decoration: pw.BoxDecoration(
-        color: bgColor,
-        borderRadius: pw.BorderRadius.circular(12),
-        border: pw.Border.all(color: color.shade(0.3), width: 1),
-      ),
-      child: pw.Column(
-        children: [
-          pw.Text(
-            value,
-            style: pw.TextStyle(
-              fontSize: 28,
-              fontWeight: pw.FontWeight.bold,
-              color: color,
-            ),
-          ),
-          pw.SizedBox(height: 8),
-          pw.Text(
-            title,
-            style: pw.TextStyle(
-              fontSize: 11,
-              fontWeight: pw.FontWeight.bold,
-              color: PdfColors.grey700,
-            ),
-            textAlign: pw.TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Urgent Alert Box
-  pw.Widget _buildUrgentAlert(int urgentCount) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(20),
-      decoration: pw.BoxDecoration(
-        color: PdfColors.red50,
-        borderRadius: pw.BorderRadius.circular(12),
-        border: pw.Border.all(color: PdfColors.red200, width: 2),
-      ),
-      child: pw.Row(
-        children: [
-          pw.Container(
-            width: 50,
-            height: 50,
-            decoration: pw.BoxDecoration(
-              color: PdfColors.red600,
-              borderRadius: pw.BorderRadius.circular(25),
-            ),
-            child: pw.Center(
-              child: pw.Text(
-                '!',
-                style: pw.TextStyle(
-                  fontSize: 24,
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.white,
-                ),
-              ),
-            ),
-          ),
-          pw.SizedBox(width: 20),
-          pw.Expanded(
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(
-                  'PERHATIAN: STOK KRITIS',
-                  style: pw.TextStyle(
-                    fontSize: 16,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.red800,
-                  ),
-                ),
-                pw.SizedBox(height: 5),
-                pw.Text(
-                  '$urgentCount produk memiliki stok sangat rendah (< 3 unit) dan memerlukan restok segera.',
-                  style: pw.TextStyle(
-                    fontSize: 12,
-                    color: PdfColors.red700,
-                    lineSpacing: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Modern Data Table
-  pw.Widget _buildModernTable() {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          'DETAIL PRODUK YANG MEMERLUKAN RESTOK',
-          style: pw.TextStyle(
-            fontSize: 16,
-            fontWeight: pw.FontWeight.bold,
-            color: PdfColors.black,
-            letterSpacing: 0.5,
-          ),
-        ),
-        pw.SizedBox(height: 15),
-        pw.Table(
-          border: pw.TableBorder.all(color: PdfColors.grey300, width: 1),
-          columnWidths: {
-            0: const pw.FixedColumnWidth(40),
-            1: const pw.FlexColumnWidth(3),
-            2: const pw.FlexColumnWidth(1.2),
-            3: const pw.FlexColumnWidth(1.5),
-            4: const pw.FlexColumnWidth(1),
-            5: const pw.FlexColumnWidth(1.2),
-          },
-          children: [
-            // Header Row
-            pw.TableRow(
-              decoration: const pw.BoxDecoration(
-                gradient: pw.LinearGradient(
-                  colors: [PdfColors.grey800, PdfColors.grey700],
-                ),
-              ),
-              children: [
-                _buildTableHeaderCell('No'),
-                _buildTableHeaderCell('Nama Produk'),
-                _buildTableHeaderCell('Ukuran'),
-                _buildTableHeaderCell('Warna'),
-                _buildTableHeaderCell('Stok'),
-                _buildTableHeaderCell('Status'),
-              ],
-            ),
-            // Data Rows
-            ...produkList.asMap().entries.map((entry) {
-              int index = entry.key;
-              ProdukPerluRestok produk = entry.value;
-              bool isUrgent = produk.stok < 3;
-              bool isLowStock = produk.stok < 5;
-
-              return pw.TableRow(
-                decoration: pw.BoxDecoration(
-                  color: index % 2 == 0 ? PdfColors.grey50 : PdfColors.white,
-                ),
-                children: [
-                  _buildTableCell('${index + 1}', isCenter: true),
-                  _buildTableCell(produk.namaProduk, isBold: isUrgent),
-                  _buildTableCell(produk.ukuran.toString(), isCenter: true),
-                  _buildTableCell(produk.warna),
-                  _buildTableCell(
-                    '${produk.stok}',
-                    isCenter: true,
-                    textColor:
-                        isUrgent
-                            ? PdfColors.red600
-                            : isLowStock
-                            ? PdfColors.orange600
-                            : PdfColors.black,
-                    isBold: isUrgent || isLowStock,
-                  ),
-                  _buildStatusCell(produk.stok),
-                ],
-              );
-            }).toList(),
-          ],
-        ),
-      ],
-    );
-  }
-
-  pw.Widget _buildTableHeaderCell(String text) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 15),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(
-          fontSize: 11,
-          fontWeight: pw.FontWeight.bold,
-          color: PdfColors.white,
-        ),
-        textAlign: pw.TextAlign.center,
-      ),
-    );
-  }
-
-  pw.Widget _buildTableCell(
-    String text, {
-    bool isCenter = false,
-    bool isBold = false,
-    PdfColor? textColor,
-  }) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(
-          fontSize: 10,
-          fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
-          color: textColor ?? PdfColors.black,
-        ),
-        textAlign: isCenter ? pw.TextAlign.center : pw.TextAlign.left,
-      ),
-    );
-  }
-
-  pw.Widget _buildStatusCell(int stok) {
-    String status;
-    PdfColor bgColor;
-    PdfColor textColor;
-
-    if (stok < 3) {
-      status = 'URGENT';
-      bgColor = PdfColors.red600;
-      textColor = PdfColors.white;
-    } else if (stok < 5) {
-      status = 'LOW';
-      bgColor = PdfColors.orange600;
-      textColor = PdfColors.white;
-    } else {
-      status = 'OK';
-      bgColor = PdfColors.green600;
-      textColor = PdfColors.white;
-    }
-
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(8),
-      child: pw.Container(
-        padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: pw.BoxDecoration(
-          color: bgColor,
-          borderRadius: pw.BorderRadius.circular(12),
-        ),
-        child: pw.Text(
-          status,
-          style: pw.TextStyle(
-            fontSize: 9,
-            fontWeight: pw.FontWeight.bold,
-            color: textColor,
-          ),
-          textAlign: pw.TextAlign.center,
-        ),
-      ),
-    );
-  }
-
-  // Page Header
-  pw.Widget _buildPageHeader() {
-    return pw.Container(
-      padding: const pw.EdgeInsets.only(bottom: 10),
-      decoration: const pw.BoxDecoration(
-        border: pw.Border(
-          bottom: pw.BorderSide(color: PdfColors.grey300, width: 1),
-        ),
-      ),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text(
-            'Inventaris Restok',
-            style: pw.TextStyle(
-              fontSize: 10,
-              color: PdfColors.grey600,
-              fontWeight: pw.FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Page Footer
-  pw.Widget _buildPageFooter(pw.Context context) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.only(top: 10),
-      decoration: const pw.BoxDecoration(
-        border: pw.Border(
-          top: pw.BorderSide(color: PdfColors.grey300, width: 1),
-        ),
-      ),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text(
-            'Page ${context.pageNumber} of ${context.pagesCount}',
-            style: pw.TextStyle(
-              fontSize: 9,
-              color: PdfColors.grey600,
-              fontWeight: pw.FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSuccessToast(String message) {
+  void _showToast(String message, ToastificationType type) {
     toastification.show(
       context: context,
       title: Text(message),
-      type: ToastificationType.success,
+      type: type,
       autoCloseDuration: const Duration(seconds: 3),
       alignment: Alignment.topCenter,
-      icon: const Icon(Icons.check_circle, color: Colors.white),
-    );
-  }
-
-  void _showErrorToast(String message) {
-    toastification.show(
-      context: context,
-      title: Text(message),
-      type: ToastificationType.error,
-      autoCloseDuration: const Duration(seconds: 4),
-      alignment: Alignment.topCenter,
-      icon: const Icon(Icons.error_outline, color: Colors.white),
     );
   }
 
   @override
   void dispose() {
-    _fadeController.dispose();
-    _slideController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -601,36 +163,25 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
           SliverToBoxAdapter(child: _buildBody()),
         ],
       ),
-      floatingActionButton:
-          produkList.isNotEmpty ? _buildFloatingActionButton() : null,
+      floatingActionButton: _buildFloatingActionButtons(),
     );
   }
 
+  // ===== UI COMPONENTS =====
+
   Widget _buildSliverAppBar() {
     return SliverAppBar(
-      expandedHeight: 120,
+      expandedHeight: 140,
       floating: false,
       pinned: true,
       elevation: 0,
       backgroundColor: Colors.black,
       foregroundColor: Colors.white,
-      leading: Container(
-        margin: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
       flexibleSpace: FlexibleSpaceBar(
         title: const Text(
           'PRODUK RESTOK',
           style: TextStyle(
             fontSize: 16,
-            color: Colors.white,
             fontWeight: FontWeight.w700,
             letterSpacing: 1.5,
           ),
@@ -643,52 +194,14 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
               colors: [Colors.black, Color(0xFF2C2C2C)],
             ),
           ),
-          child: Stack(
-            children: [
-              Positioned(
-                right: -50,
-                top: -50,
-                child: Container(
-                  width: 150,
-                  height: 150,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-              Positioned(
-                left: -30,
-                bottom: -30,
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.03),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
       actions: [
-        if (produkList.isNotEmpty) ...[
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            child: IconButton(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.picture_as_pdf, size: 20),
-              ),
-              onPressed: _exportToPdf,
-              tooltip: 'Export PDF',
-            ),
+        if (filteredProdukList.isNotEmpty) ...[
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            onPressed: _exportToPdf,
+            tooltip: 'Export PDF',
           ),
         ],
         Container(
@@ -697,16 +210,9 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
           ),
           child: Text(
-            '${produkList.length}',
+            '${filteredProdukList.length}',
             style: const TextStyle(
               color: Colors.black,
               fontWeight: FontWeight.bold,
@@ -719,54 +225,166 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
   }
 
   Widget _buildBody() {
-    if (isLoading) {
-      return _buildLoadingState();
-    }
-
-    if (hasError) {
-      return _buildErrorState();
-    }
-
-    if (produkList.isEmpty) {
-      return _buildEmptyState();
-    }
+    if (isLoading) return _buildLoadingState();
+    if (hasError) return _buildErrorState();
+    if (produkList.isEmpty) return _buildEmptyState();
 
     return FadeTransition(
       opacity: _fadeAnimation,
-      child: SlideTransition(
-        position: _slideAnimation,
-        child: Column(
-          children: [
-            _buildStatsSection(),
-            _buildWarningHeader(),
-            _buildProductList(),
-            const SizedBox(height: 100), // Space for FAB
-          ],
-        ),
+      child: Column(
+        children: [
+          _buildFiltersSection(),
+          _buildStatsSection(),
+          if (filteredProdukList.isNotEmpty) _buildWarningHeader(),
+          _buildProductList(),
+          const SizedBox(height: 100),
+        ],
       ),
     );
   }
 
-  Widget _buildStatsSection() {
+  Widget _buildFiltersSection() {
     return Container(
       margin: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Filter & Pencarian',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Search Bar
+          TextField(
+            onChanged: _onSearchChanged,
+            decoration: InputDecoration(
+              hintText: 'Cari produk atau warna...',
+              prefixIcon: const Icon(Icons.search, color: Colors.grey),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Colors.black),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Category Filter
+          const Text(
+            'Kategori',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildCategoryChip('all', 'Semua', selectedKategori == 'all'),
+                ...availableKategori.map(
+                  (kategori) => _buildCategoryChip(
+                    kategori,
+                    _formatKategori(kategori),
+                    selectedKategori == kategori,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryChip(String value, String label, bool isSelected) {
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(label),
+        selected: isSelected,
+        onSelected: (_) => _onKategoriChanged(value),
+        selectedColor: Colors.black,
+        backgroundColor: Colors.grey[100],
+        labelStyle: TextStyle(
+          color: isSelected ? Colors.white : Colors.black87,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      ),
+    );
+  }
+
+  String _formatKategori(String kategori) {
+    return kategori
+        .split(' ')
+        .map(
+          (word) =>
+              word.isNotEmpty
+                  ? word[0].toUpperCase() + word.substring(1)
+                  : word,
+        )
+        .join(' ');
+  }
+
+  Widget _buildStatsSection() {
+    final urgentCount = filteredProdukList.where((p) => p.stok < 3).length;
+    final lowStockCount = filteredProdukList.where((p) => p.stok < 5).length;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
           Expanded(
             child: _buildStatCard(
               'Total Produk',
-              '${produkList.length}',
+              '${filteredProdukList.length}',
               Icons.inventory_2_rounded,
-              Colors.black,
+              Colors.blue,
             ),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: _buildStatCard(
-              'Perlu Restok',
-              '${produkList.where((p) => p.stok < 5).length}',
+              'Stok Rendah',
+              '$lowStockCount',
               Icons.warning_rounded,
-              const Color(0xFFE53E3E),
+              Colors.orange,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: _buildStatCard(
+              'Urgent',
+              '$urgentCount',
+              Icons.priority_high_rounded,
+              Colors.red,
             ),
           ),
         ],
@@ -794,7 +412,6 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(12),
@@ -804,11 +421,11 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
             ),
             child: Icon(icon, color: color, size: 24),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 28,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Colors.black,
             ),
@@ -817,7 +434,7 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
           Text(
             title,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 12,
               color: Colors.grey[600],
               fontWeight: FontWeight.w500,
             ),
@@ -829,7 +446,7 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
 
   Widget _buildWarningHeader() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
+      margin: const EdgeInsets.all(20),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -839,10 +456,7 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
           ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFE53E3E).withOpacity(0.2),
-          width: 1,
-        ),
+        border: Border.all(color: const Color(0xFFE53E3E).withOpacity(0.2)),
       ),
       child: Row(
         children: [
@@ -851,13 +465,6 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
             decoration: BoxDecoration(
               color: const Color(0xFFE53E3E),
               borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFE53E3E).withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
             ),
             child: const Icon(
               Icons.priority_high_rounded,
@@ -880,7 +487,7 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Produk berikut memerlukan restok segera untuk menghindari kehabisan stok',
+                  'Produk berikut memerlukan restok untuk menghindari kehabisan stok',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[600],
@@ -896,13 +503,34 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
   }
 
   Widget _buildProductList() {
+    if (filteredProdukList.isEmpty) {
+      return Container(
+        margin: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(40),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          children: [
+            Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'Tidak ada produk yang ditemukan',
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Daftar Produk (${produkList.length})',
+            'Daftar Produk (${filteredProdukList.length})',
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -910,13 +538,13 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
             ),
           ),
           const SizedBox(height: 16),
-          ...produkList.asMap().entries.map((entry) {
+          ...filteredProdukList.asMap().entries.map((entry) {
             final index = entry.key;
             final produk = entry.value;
             return AnimatedContainer(
               duration: Duration(milliseconds: 200 + (index * 50)),
               curve: Curves.easeOutCubic,
-              child: _buildProductCard(produk, index),
+              child: _buildProductCard(produk),
             );
           }).toList(),
         ],
@@ -924,10 +552,11 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
     );
   }
 
-  Widget _buildProductCard(ProdukPerluRestok produk, int index) {
+  Widget _buildProductCard(ProdukPerluRestok produk) {
     final imageUrl =
         'http://192.168.1.96:3000/uploads/${produk.linkGambarVarian}';
-    final isLowStock = produk.stok < 3;
+    final isUrgent = produk.stok < 3;
+    final isLowStock = produk.stok < 5;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -935,7 +564,7 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         border:
-            isLowStock
+            isUrgent
                 ? Border.all(
                   color: const Color(0xFFE53E3E).withOpacity(0.3),
                   width: 2,
@@ -949,176 +578,156 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Row(
-          children: [
-            // Product Image
-            Container(
+      child: Row(
+        children: [
+          // Product Image
+          ClipRRect(
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20),
+              bottomLeft: Radius.circular(20),
+            ),
+            child: Container(
               width: 100,
               height: 120,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Colors.grey[100]!, Colors.grey[50]!],
-                ),
-              ),
-              child: ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  bottomLeft: Radius.circular(20),
-                ),
-                child: Image.network(
-                  imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Colors.grey[100]!, Colors.grey[50]!],
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.image_not_supported_rounded,
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder:
+                    (context, error, stackTrace) => Container(
+                      decoration: BoxDecoration(color: Colors.grey[100]),
+                      child: Icon(
+                        Icons.image_not_supported,
                         color: Colors.grey,
                         size: 40,
                       ),
-                    );
-                  },
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Colors.grey[100]!, Colors.grey[50]!],
-                        ),
-                      ),
-                      child: const Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                    ),
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    decoration: BoxDecoration(color: Colors.grey[100]),
+                    child: const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  );
+                },
               ),
             ),
-            // Product Details
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            produk.namaProduk,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                              height: 1.3,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (isLowStock)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE53E3E),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Text(
-                              'URGENT',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _buildModernChip(
-                          'Size ${produk.ukuran}',
-                          Icons.straighten_rounded,
-                          Colors.blue[600]!,
-                        ),
-                        _buildModernChip(
-                          produk.warna,
-                          Icons.palette_rounded,
-                          Colors.purple[600]!,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.inventory_2_rounded,
-                          size: 18,
-                          color:
-                              isLowStock
-                                  ? const Color(0xFFE53E3E)
-                                  : Colors.grey[600],
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Stok: ${produk.stok}',
-                          style: TextStyle(
+          ),
+          // Product Details
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          produk.namaProduk,
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color:
-                                isLowStock
-                                    ? const Color(0xFFE53E3E)
-                                    : Colors.grey[700],
+                            color: Colors.black,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (isUrgent)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE53E3E),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'URGENT',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      _buildChip(
+                        '${_formatKategori(produk.kategori)}',
+                        Icons.category,
+                        Colors.purple,
+                      ),
+                      _buildChip(
+                        'Size ${produk.ukuran}',
+                        Icons.straighten,
+                        Colors.blue,
+                      ),
+                      _buildChip(produk.warna, Icons.palette, Colors.orange),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.inventory_2_rounded,
+                        size: 18,
+                        color:
+                            isUrgent
+                                ? const Color(0xFFE53E3E)
+                                : isLowStock
+                                ? Colors.orange
+                                : Colors.green,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Stok: ${produk.stok}',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color:
+                              isUrgent
+                                  ? const Color(0xFFE53E3E)
+                                  : isLowStock
+                                  ? Colors.orange
+                                  : Colors.green,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildModernChip(String label, IconData icon, Color color) {
+  Widget _buildChip(String label, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 16),
-          const SizedBox(width: 6),
+          Icon(icon, color: color, size: 12),
+          const SizedBox(width: 4),
           Text(
             label,
             style: TextStyle(
               color: color,
-              fontSize: 12,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -1128,46 +737,33 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
   }
 
   Widget _buildLoadingState() {
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.6,
+      child: const Center(
+        child: CircularProgressIndicator(color: Colors.black),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
+      height: MediaQuery.of(context).size.height * 0.6,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 20,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    child: CircularProgressIndicator(
-                      color: Colors.black,
-                      strokeWidth: 3,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Memuat data produk...',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.black87,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
+            const Icon(Icons.error_outline, color: Colors.red, size: 48),
+            const SizedBox(height: 16),
+            const Text(
+              'Gagal memuat data',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(errorMessage, textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => _loadData(),
+              child: const Text('Coba Lagi'),
             ),
           ],
         ),
@@ -1175,165 +771,359 @@ class _ProdukRestokPageState extends State<ProdukRestokPage>
     );
   }
 
-  Widget _buildErrorState() {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
-      child: Center(
-        child: Container(
-          margin: const EdgeInsets.all(24),
-          padding: const EdgeInsets.all(32),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 20,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE53E3E).withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.error_outline_rounded,
-                  color: Color(0xFFE53E3E),
-                  size: 48,
-                ),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Gagal Memuat Data',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                errorMessage,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                  height: 1.4,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: _loadData,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 16,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Coba Lagi',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildEmptyState() {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.6,
       child: Center(
-        child: Container(
-          margin: const EdgeInsets.all(24),
-          padding: const EdgeInsets.all(40),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 20,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.check_circle_outline_rounded,
-                  color: Colors.green,
-                  size: 64,
-                ),
-              ),
-              const SizedBox(height: 32),
-              const Text(
-                'Semua Produk Tersedia',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Tidak ada produk yang perlu direstok saat ini.\nSemua stok dalam kondisi aman.',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[600],
-                  height: 1.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.check_circle, color: Colors.green, size: 64),
+            const SizedBox(height: 16),
+            const Text(
+              'Semua Produk Tersedia',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Tidak ada produk yang perlu direstok',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildFloatingActionButton() {
+  Widget _buildFloatingActionButtons() {
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        FloatingActionButton(
-          heroTag: "pdf",
-          onPressed: _exportToPdf,
-          backgroundColor: Colors.black,
-          elevation: 8,
-          child: const Icon(Icons.picture_as_pdf_rounded, color: Colors.white),
-        ),
+        if (filteredProdukList.isNotEmpty)
+          FloatingActionButton(
+            heroTag: "pdf",
+            onPressed: _exportToPdf,
+            backgroundColor: Colors.black,
+            child: const Icon(Icons.picture_as_pdf, color: Colors.white),
+          ),
         const SizedBox(height: 16),
         FloatingActionButton(
           heroTag: "refresh",
-          onPressed: _loadData,
+          onPressed: () => _loadData(kategori: selectedKategori),
           backgroundColor: Colors.white,
           foregroundColor: Colors.black,
-          elevation: 8,
           child: const Icon(Icons.refresh_rounded),
         ),
       ],
+    );
+  }
+
+  // ===== PDF COMPONENTS (Simplified) =====
+
+  pw.Widget _buildPdfHeader(DateTime now) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(20),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.black,
+        borderRadius: pw.BorderRadius.circular(10),
+      ),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                'RESTOCK REPORT',
+                style: pw.TextStyle(
+                  fontSize: 20,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.white,
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Text(
+                'Laporan Produk yang Memerlukan Restok',
+                style: pw.TextStyle(fontSize: 12, color: PdfColors.grey300),
+              ),
+            ],
+          ),
+          pw.Text(
+            '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}',
+            style: pw.TextStyle(fontSize: 12, color: PdfColors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfSummary(
+    List<ProdukPerluRestok> lowStock,
+    List<ProdukPerluRestok> urgent,
+  ) {
+    return pw.Row(
+      children: [
+        pw.Expanded(
+          child: _buildPdfSummaryCard(
+            'Total',
+            '${filteredProdukList.length}',
+            PdfColors.blue,
+          ),
+        ),
+        pw.SizedBox(width: 10),
+        pw.Expanded(
+          child: _buildPdfSummaryCard(
+            'Perlu Restok',
+            '${lowStock.length}',
+            PdfColors.orange,
+          ),
+        ),
+        pw.SizedBox(width: 10),
+        pw.Expanded(
+          child: _buildPdfSummaryCard(
+            'Urgent',
+            '${urgent.length}',
+            PdfColors.red,
+          ),
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _buildPdfSummaryCard(String title, String value, PdfColor color) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(15),
+      decoration: pw.BoxDecoration(
+        color: color.shade(0.1),
+        borderRadius: pw.BorderRadius.circular(8),
+        border: pw.Border.all(color: color, width: 1),
+      ),
+      child: pw.Column(
+        children: [
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              fontSize: 20,
+              fontWeight: pw.FontWeight.bold,
+              color: color,
+            ),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Text(
+            title,
+            style: pw.TextStyle(fontSize: 10, color: PdfColors.black),
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfAlert(int urgentCount) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(15),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.red50,
+        borderRadius: pw.BorderRadius.circular(8),
+        border: pw.Border.all(color: PdfColors.red200, width: 1),
+      ),
+      child: pw.Row(
+        children: [
+          pw.Container(
+            width: 40,
+            height: 40,
+            decoration: pw.BoxDecoration(
+              color: PdfColors.red,
+              borderRadius: pw.BorderRadius.circular(20),
+            ),
+            child: pw.Center(
+              child: pw.Text(
+                '!',
+                style: pw.TextStyle(
+                  fontSize: 20,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.white,
+                ),
+              ),
+            ),
+          ),
+          pw.SizedBox(width: 15),
+          pw.Expanded(
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'PERHATIAN: STOK KRITIS',
+                  style: pw.TextStyle(
+                    fontSize: 14,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.red800,
+                  ),
+                ),
+                pw.Text(
+                  '$urgentCount produk memiliki stok sangat rendah dan memerlukan restok segera.',
+                  style: pw.TextStyle(fontSize: 11, color: PdfColors.red700),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfTable() {
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.grey300),
+      columnWidths: {
+        0: const pw.FixedColumnWidth(30),
+        1: const pw.FlexColumnWidth(3),
+        2: const pw.FlexColumnWidth(1.5),
+        3: const pw.FlexColumnWidth(1),
+        4: const pw.FlexColumnWidth(1.5),
+        5: const pw.FlexColumnWidth(1),
+        6: const pw.FlexColumnWidth(1),
+      },
+      children: [
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: PdfColors.grey800),
+          children: [
+            _buildPdfTableHeader('No'),
+            _buildPdfTableHeader('Nama Produk'),
+            _buildPdfTableHeader('Kategori'),
+            _buildPdfTableHeader('Ukuran'),
+            _buildPdfTableHeader('Warna'),
+            _buildPdfTableHeader('Stok'),
+            _buildPdfTableHeader('Status'),
+          ],
+        ),
+        ...filteredProdukList.asMap().entries.map((entry) {
+          final index = entry.key;
+          final produk = entry.value;
+          final isUrgent = produk.stok < 3;
+
+          return pw.TableRow(
+            decoration: pw.BoxDecoration(
+              color: index % 2 == 0 ? PdfColors.grey50 : PdfColors.white,
+            ),
+            children: [
+              _buildPdfTableCell('${index + 1}', isCenter: true),
+              _buildPdfTableCell(produk.namaProduk),
+              _buildPdfTableCell(_formatKategori(produk.kategori)),
+              _buildPdfTableCell('${produk.ukuran}', isCenter: true),
+              _buildPdfTableCell(produk.warna),
+              _buildPdfTableCell(
+                '${produk.stok}',
+                isCenter: true,
+                isBold: isUrgent,
+                textColor: isUrgent ? PdfColors.red : PdfColors.black,
+              ),
+              _buildPdfStatusCell(produk.stok),
+            ],
+          );
+        }),
+      ],
+    );
+  }
+
+  pw.Widget _buildPdfTableHeader(String text) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(8),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: 10,
+          fontWeight: pw.FontWeight.bold,
+          color: PdfColors.white,
+        ),
+        textAlign: pw.TextAlign.center,
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfTableCell(
+    String text, {
+    bool isCenter = false,
+    bool isBold = false,
+    PdfColor? textColor,
+  }) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(8),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: 9,
+          fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+          color: textColor ?? PdfColors.black,
+        ),
+        textAlign: isCenter ? pw.TextAlign.center : pw.TextAlign.left,
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfStatusCell(int stok) {
+    String status;
+    PdfColor color;
+
+    if (stok < 3) {
+      status = 'URGENT';
+      color = PdfColors.red;
+    } else if (stok < 5) {
+      status = 'LOW';
+      color = PdfColors.orange;
+    } else {
+      status = 'OK';
+      color = PdfColors.green;
+    }
+
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(8),
+      child: pw.Container(
+        padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        decoration: pw.BoxDecoration(
+          color: color,
+          borderRadius: pw.BorderRadius.circular(8),
+        ),
+        child: pw.Text(
+          status,
+          style: pw.TextStyle(
+            fontSize: 8,
+            fontWeight: pw.FontWeight.bold,
+            color: PdfColors.white,
+          ),
+          textAlign: pw.TextAlign.center,
+        ),
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfPageHeader() {
+    return pw.Container(
+      padding: const pw.EdgeInsets.only(bottom: 10),
+      decoration: const pw.BoxDecoration(
+        border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey300)),
+      ),
+      child: pw.Text(
+        'Inventaris Restok',
+        style: pw.TextStyle(
+          fontSize: 10,
+          color: PdfColors.grey600,
+          fontWeight: pw.FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfPageFooter(pw.Context context) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.only(top: 10),
+      decoration: const pw.BoxDecoration(
+        border: pw.Border(top: pw.BorderSide(color: PdfColors.grey300)),
+      ),
+      child: pw.Text(
+        'Halaman ${context.pageNumber} dari ${context.pagesCount}',
+        style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+        textAlign: pw.TextAlign.center,
+      ),
     );
   }
 }

@@ -7,6 +7,7 @@ import 'package:frontend/pages/admin_pages/pages/admin_karyawan_pages/admin_peng
 import 'package:frontend/pages/admin_pages/pages/admin_master_pages/admin_lobby_akun.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_master_pages/admin_gaji_karyawan.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_master_pages/admin_harga_original.dart';
+import 'package:frontend/pages/admin_pages/pages/admin_master_pages/admin_operasional.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_mix_online_offline/admin_penjualan_harian.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_mix_online_offline/admin_penjualan_offline.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/admin_daftar_produk.dart';
@@ -18,6 +19,7 @@ import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/admin_ulasa
 import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/manajemen_pesanan_produk/manajemen_pesanan_produk.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/pembayaran_online/admin_lobby_pembayaran_online.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_pengiriman/admin_pengiriman.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
@@ -88,7 +90,9 @@ class _MainAdminState extends State<MainAdmin> {
   bool _isLoadingRestockData = true;
   int _verifikasiCount = 0;
   bool _isLoadingVerifikasiData = true;
-
+  DashboardSummary? summary;
+  List<DashboardPoint> data = [];
+  bool loadingDashboard = true;
   // Organized menu items by categories
   late List<MenuCategory> _menuCategories;
 
@@ -113,16 +117,65 @@ class _MainAdminState extends State<MainAdmin> {
     super.initState();
     _loadRestockData();
     _loadVerifikasiData();
+    _loadDashboardData(); // TAMBAHAN BARU
     _initializeMenuCategories();
+  }
+
+  Future<void> _loadDashboardData() async {
+    setState(() => loadingDashboard = true);
+    try {
+      final s = await DashboardApi.fetchSummary();
+      final g = await DashboardApi.fetchGrafik(yearsBack: 3, yearsForward: 2);
+      setState(() {
+        summary = s;
+        data = g;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => loadingDashboard = false);
+    }
+  }
+
+  List<FlSpot> _spotsTotal({required bool forecast}) {
+    final points = <FlSpot>[];
+    int idx = 0;
+    for (final d in data) {
+      final isF = d.forecast;
+      if (isF == forecast) {
+        points.add(FlSpot(idx.toDouble(), d.total.toDouble()));
+      }
+      idx++;
+    }
+    return points;
+  }
+
+  List<String> _labels() => data.map((e) => e.ym).toList();
+
+  String _fmt(int n) {
+    final s = n.toString();
+    final buf = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      final pos = s.length - i;
+      buf.write(s[i]);
+      if (pos > 1 && pos % 3 == 1) buf.write('.');
+    }
+    return buf.toString();
   }
 
   Future<void> _refreshData() async {
     setState(() {
       _isLoadingRestockData = true;
       _isLoadingVerifikasiData = true;
+      loadingDashboard = true; // TAMBAHAN BARU
     });
 
-    await Future.wait([_loadRestockData(), _loadVerifikasiData()]);
+    await Future.wait([
+      _loadRestockData(),
+      _loadVerifikasiData(),
+      _loadDashboardData(), // TAMBAHAN BARU
+    ]);
   }
 
   Future<void> _loadVerifikasiData() async {
@@ -493,6 +546,25 @@ class _MainAdminState extends State<MainAdmin> {
           ),
         ],
       ),
+      MenuCategory(
+        title: 'Operasional',
+        icon: Icons.broadcast_on_personal_outlined,
+        items: [
+          AdminMenuItem(
+            title: 'Operasional',
+            icon: Icons.settings_backup_restore,
+            color: verifikasiStyle['color'], // Ganti dari static color
+            gradient: verifikasiStyle['gradient'], // Ganti dari static gradient
+            isUrgent: verifikasiStyle['isUrgent'], // Tambahkan ini
+            notificationCount: _verifikasiCount, // Tambahkan ini
+            notificationText: verifikasiStyle['statusText'], // Tambahkan ini
+            showNotification: true, // Tambahkan ini
+            isLoading: _isLoadingVerifikasiData, // Tambahkan ini
+            onTap:
+                (context) => _navigateToPage(context, const AdminOperasional()),
+          ),
+        ],
+      ),
     ];
   }
 
@@ -685,11 +757,339 @@ class _MainAdminState extends State<MainAdmin> {
 
   Widget _buildContent() {
     return SliverPadding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
       sliver:
           _searchQuery.isEmpty
-              ? _buildCategorizedMenu()
+              ? SliverList(
+                delegate: SliverChildListDelegate([
+                  // TAMBAHAN: Dashboard sebagai item pertama
+                  if (_searchQuery.isEmpty) ...[
+                    const SizedBox(height: 20),
+                    _buildCategoryHeader(
+                      MenuCategory(
+                        title: 'Dashboard Overview',
+                        icon: Icons.dashboard_rounded,
+                        items: [],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildDashboardCards(),
+                    _buildDashboardChart(),
+                    const SizedBox(height: 32),
+                  ],
+                  // Menu categories
+                  ..._menuCategories.asMap().entries.map((entry) {
+                    final categoryIndex = entry.key;
+                    final category = entry.value;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (categoryIndex > 0) const SizedBox(height: 32),
+                        _buildCategoryHeader(category),
+                        const SizedBox(height: 16),
+                        _buildCategoryGrid(category),
+                      ],
+                    );
+                  }).toList(),
+                ]),
+              )
               : _buildSearchResults(),
+    );
+  }
+
+  Widget _buildDashboardCards() {
+    if (loadingDashboard) {
+      return const Padding(
+        padding: EdgeInsets.all(20),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        _infoCard('Omzet Hari Ini', summary?.todayOmzet ?? 0),
+        _infoCard('Profit Hari Ini', summary?.todayProfit ?? 0),
+        _infoCard('Omzet Bulan Ini', summary?.monthOmzet ?? 0),
+        _infoCard('Profit Bulan Ini', summary?.monthProfit ?? 0),
+      ],
+    );
+  }
+
+  Widget _buildDashboardChart() {
+    if (loadingDashboard || data.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final label = _labels();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Grafik Penjualan (Total)',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 260,
+                child: LineChart(
+                  LineChartData(
+                    lineBarsData: [
+                      LineChartBarData(
+                        spots: _spotsTotal(forecast: false),
+                        isCurved: true,
+                        color: const Color(0xFF667EEA),
+                        barWidth: 3,
+                        dotData: FlDotData(show: false),
+                      ),
+                      LineChartBarData(
+                        spots: _spotsTotal(forecast: true),
+                        isCurved: true,
+                        dashArray: [8, 6],
+                        color: const Color(0xFFFF9800),
+                        barWidth: 3,
+                        dotData: FlDotData(show: false),
+                      ),
+                    ],
+                    titlesData: FlTitlesData(
+                      leftTitles: const AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 42,
+                        ),
+                      ),
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          getTitlesWidget: (v, meta) {
+                            final i = v.toInt();
+                            if (i < 0 || i >= label.length) {
+                              return const SizedBox.shrink();
+                            }
+                            if (i % 3 != 0) return const SizedBox.shrink();
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                label[i],
+                                style: const TextStyle(fontSize: 10),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                    ),
+                    gridData: const FlGridData(show: true),
+                    borderData: FlBorderData(show: true),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: const [
+                  _LegendDot(),
+                  SizedBox(width: 6),
+                  Text('Historis'),
+                  SizedBox(width: 16),
+                  _LegendDot(dashed: true),
+                  SizedBox(width: 6),
+                  Text('Forecast'),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDashboard() {
+    if (loadingDashboard) {
+      return const SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    final label = _labels();
+
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+        child: Column(
+          children: [
+            // Cards summary
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _infoCard('Omzet Hari Ini', summary?.todayOmzet ?? 0),
+                _infoCard('Profit Hari Ini', summary?.todayProfit ?? 0),
+                _infoCard('Omzet Bulan Ini', summary?.monthOmzet ?? 0),
+                _infoCard('Profit Bulan Ini', summary?.monthProfit ?? 0),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // LineChart total
+            Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Grafik Penjualan (Total)',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 260,
+                      child: LineChart(
+                        LineChartData(
+                          lineBarsData: [
+                            LineChartBarData(
+                              spots: _spotsTotal(forecast: false),
+                              isCurved: true,
+                              color: const Color(0xFF667EEA),
+                              barWidth: 3,
+                              dotData: FlDotData(show: false),
+                            ),
+                            LineChartBarData(
+                              spots: _spotsTotal(forecast: true),
+                              isCurved: true,
+                              dashArray: [8, 6],
+                              color: const Color(0xFFFF9800),
+                              barWidth: 3,
+                              dotData: FlDotData(show: false),
+                            ),
+                          ],
+                          titlesData: FlTitlesData(
+                            leftTitles: const AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 42,
+                              ),
+                            ),
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                getTitlesWidget: (v, meta) {
+                                  final i = v.toInt();
+                                  if (i < 0 || i >= label.length) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  if (i % 3 != 0)
+                                    return const SizedBox.shrink();
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 6),
+                                    child: Text(
+                                      label[i],
+                                      style: const TextStyle(fontSize: 10),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            topTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                            rightTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                          ),
+                          gridData: const FlGridData(show: true),
+                          borderData: FlBorderData(show: true),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: const [
+                        _LegendDot(),
+                        SizedBox(width: 6),
+                        Text('Historis'),
+                        SizedBox(width: 16),
+                        _LegendDot(dashed: true),
+                        SizedBox(width: 6),
+                        Text('Forecast'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoCard(String title, int value) {
+    return SizedBox(
+      width: (MediaQuery.of(context).size.width - 12 * 3) / 2,
+      child: Card(
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            gradient: const LinearGradient(
+              colors: [Color(0xFFFFFFFF), Color(0xFFF8FAFC)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Rp ${_fmt(value)}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2D3748),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1005,6 +1405,24 @@ class AdminMenuCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _LegendDot extends StatelessWidget {
+  final bool dashed;
+  const _LegendDot({this.dashed = false, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 18,
+      height: 8,
+      decoration: BoxDecoration(
+        border: dashed ? Border.all() : null,
+        color: dashed ? Colors.transparent : const Color(0xFF667EEA),
+        borderRadius: BorderRadius.circular(4),
       ),
     );
   }

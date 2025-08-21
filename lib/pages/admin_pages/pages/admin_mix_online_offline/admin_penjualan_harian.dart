@@ -803,6 +803,10 @@ Future<pw.Document> generateLaporanPDF(List<LaporanHarian> data) async {
     (sum, item) => sum + item.totalKeuntunganHarian,
   );
   int totalGajiSum = data.fold(0, (sum, item) => sum + item.gajiKaryawanHarian);
+  int totalBiayaOperasionalSum = data.fold(
+    0,
+    (sum, item) => sum + item.biayaOperasionalHarian,
+  );
   int totalKeuntunganBersihSum = data.fold(
     0,
     (sum, item) => sum + item.keuntunganBersih,
@@ -877,7 +881,7 @@ Future<pw.Document> generateLaporanPDF(List<LaporanHarian> data) async {
 
             pw.SizedBox(height: 24),
 
-            // Summary Cards
+            // Summary Cards - Updated to include 4 cards in 2 rows
             pw.Row(
               children: [
                 pw.Expanded(
@@ -945,6 +949,45 @@ Future<pw.Document> generateLaporanPDF(List<LaporanHarian> data) async {
                     ),
                   ),
                 ),
+              ],
+            ),
+
+            pw.SizedBox(height: 12),
+
+            pw.Row(
+              children: [
+                pw.Expanded(
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.all(16),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.orange50,
+                      border: pw.Border.all(color: PdfColors.orange200),
+                      borderRadius: pw.BorderRadius.circular(8),
+                    ),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'Total Biaya Operasional',
+                          style: pw.TextStyle(
+                            fontSize: 10,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.orange800,
+                          ),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          formatRupiah(totalBiayaOperasionalSum),
+                          style: pw.TextStyle(
+                            fontSize: 14,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.orange900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 pw.SizedBox(width: 12),
                 pw.Expanded(
                   child: pw.Container(
@@ -983,7 +1026,7 @@ Future<pw.Document> generateLaporanPDF(List<LaporanHarian> data) async {
 
             pw.SizedBox(height: 24),
 
-            // Table Section
+            // Table Section - Updated with new column structure
             pw.Container(
               decoration: pw.BoxDecoration(
                 border: pw.Border.all(color: PdfColors.grey300),
@@ -1001,15 +1044,16 @@ Future<pw.Document> generateLaporanPDF(List<LaporanHarian> data) async {
                   ),
                 ),
                 columnWidths: {
-                  0: const pw.FlexColumnWidth(1.2), // Tanggal
-                  1: const pw.FlexColumnWidth(1.3), // Offline
-                  2: const pw.FlexColumnWidth(1.3), // Online
-                  3: const pw.FlexColumnWidth(1.2), // Untung Offline
-                  4: const pw.FlexColumnWidth(1.2), // Untung Online
-                  5: const pw.FlexColumnWidth(1.3), // Total Harian
-                  6: const pw.FlexColumnWidth(1.2), // Total Untung
-                  7: const pw.FlexColumnWidth(1.2), // Gaji Harian
-                  8: const pw.FlexColumnWidth(1.3), // Untung Bersih
+                  0: const pw.FlexColumnWidth(1.0), // Tanggal
+                  1: const pw.FlexColumnWidth(1.1), // Offline
+                  2: const pw.FlexColumnWidth(1.1), // Online
+                  3: const pw.FlexColumnWidth(1.0), // Untung Offline
+                  4: const pw.FlexColumnWidth(1.0), // Untung Online
+                  5: const pw.FlexColumnWidth(1.1), // Total Harian
+                  6: const pw.FlexColumnWidth(1.0), // Total Untung
+                  7: const pw.FlexColumnWidth(1.0), // Gaji Harian
+                  8: const pw.FlexColumnWidth(1.1), // Biaya Operasional
+                  9: const pw.FlexColumnWidth(1.1), // Untung Bersih
                 },
                 children: [
                   // Header Row
@@ -1026,6 +1070,7 @@ Future<pw.Document> generateLaporanPDF(List<LaporanHarian> data) async {
                       _buildHeaderCell('Total\nHarian'),
                       _buildHeaderCell('Total\nUntung'),
                       _buildHeaderCell('Gaji\nHarian'),
+                      _buildHeaderCell('Biaya\nOperasional'),
                       _buildHeaderCell('Untung\nBersih'),
                     ],
                   ),
@@ -1065,6 +1110,10 @@ Future<pw.Document> generateLaporanPDF(List<LaporanHarian> data) async {
                           formatRupiah(laporan.gajiKaryawanHarian),
                         ),
                         _buildDataCell(
+                          formatRupiah(laporan.biayaOperasionalHarian),
+                          color: PdfColors.orange800,
+                        ),
+                        _buildDataCell(
                           formatRupiah(laporan.keuntunganBersih),
                           color:
                               laporan.keuntunganBersih >= 0
@@ -1090,6 +1139,10 @@ Future<pw.Document> generateLaporanPDF(List<LaporanHarian> data) async {
                       _buildTotalCell(formatRupiah(totalKeuntunganSum)),
                       _buildTotalCell(formatRupiah(totalGajiSum)),
                       _buildTotalCell(
+                        formatRupiah(totalBiayaOperasionalSum),
+                        color: PdfColors.orange800,
+                      ),
+                      _buildTotalCell(
                         formatRupiah(totalKeuntunganBersihSum),
                         color:
                             totalKeuntunganBersihSum >= 0
@@ -1104,7 +1157,7 @@ Future<pw.Document> generateLaporanPDF(List<LaporanHarian> data) async {
 
             pw.SizedBox(height: 20),
 
-            // Footer
+            // Footer - Updated note
             pw.Container(
               padding: const pw.EdgeInsets.all(12),
               decoration: pw.BoxDecoration(
@@ -1115,7 +1168,7 @@ Future<pw.Document> generateLaporanPDF(List<LaporanHarian> data) async {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text(
-                    'Catatan: Keuntungan bersih sudah dipotong gaji karyawan harian',
+                    'Catatan: Keuntungan bersih sudah dipotong gaji karyawan dan biaya operasional harian',
                     style: const pw.TextStyle(
                       fontSize: 9,
                       color: PdfColors.grey700,

@@ -6,6 +6,174 @@ import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
 import 'dart:async';
 
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+class DashboardPoint {
+  final String ym; // 'YYYY-MM'
+  final int? online;
+  final int? offline;
+  final int total;
+  final int? profit;
+  final bool forecast;
+
+  DashboardPoint({
+    required this.ym,
+    required this.total,
+    this.online,
+    this.offline,
+    this.profit,
+    this.forecast = false,
+  });
+
+  factory DashboardPoint.fromJson(Map<String, dynamic> j) {
+    return DashboardPoint(
+      ym: j['ym'],
+      online: j['online'],
+      offline: j['offline'],
+      total: j['total'],
+      profit: j['profit'],
+      forecast: j['forecast'] ?? false,
+    );
+  }
+}
+
+class DashboardSummary {
+  final int todayOmzet;
+  final int todayProfit;
+  final int monthOmzet;
+  final int monthProfit;
+
+  DashboardSummary({
+    required this.todayOmzet,
+    required this.todayProfit,
+    required this.monthOmzet,
+    required this.monthProfit,
+  });
+
+  factory DashboardSummary.fromJson(Map<String, dynamic> j) {
+    final today = j['today'] ?? {};
+    final mon = j['thisMonth'] ?? {};
+    return DashboardSummary(
+      todayOmzet: today['omzet'] ?? 0,
+      todayProfit: today['profit'] ?? 0,
+      monthOmzet: mon['omzet'] ?? 0,
+      monthProfit: mon['profit'] ?? 0,
+    );
+  }
+}
+
+class DashboardApi {
+  static const base = 'http://192.168.1.96:3000/api';
+
+  static Future<DashboardSummary> fetchSummary() async {
+    final r = await http.get(Uri.parse('$base/adminDashboardSummary'));
+    if (r.statusCode != 200) throw Exception('Summary err ${r.statusCode}');
+    final body = jsonDecode(r.body);
+    return DashboardSummary.fromJson(body['data']);
+  }
+
+  static Future<List<DashboardPoint>> fetchGrafik({
+    int yearsBack = 3,
+    int yearsForward = 2,
+  }) async {
+    final r = await http.get(
+      Uri.parse(
+        '$base/adminGrafikPenjualan?years_back=$yearsBack&years_forward=$yearsForward',
+      ),
+    );
+    if (r.statusCode != 200) {
+      throw Exception('Grafik err ${r.statusCode}');
+    }
+    final body = jsonDecode(r.body);
+    final hist =
+        (body['data']['historical'] as List)
+            .map((e) => DashboardPoint.fromJson(e))
+            .toList();
+    final fcs =
+        (body['data']['forecast'] as List)
+            .map((e) => DashboardPoint.fromJson(e))
+            .toList();
+    return [...hist, ...fcs];
+  }
+}
+
+class BiayaOperasional {
+  final int id;
+  final int biayaToko;
+  final int bensin;
+  final String bulan;
+
+  BiayaOperasional({
+    required this.id,
+    required this.biayaToko,
+    required this.bensin,
+    required this.bulan,
+  });
+
+  factory BiayaOperasional.fromJson(Map<String, dynamic> json) {
+    return BiayaOperasional(
+      id: int.tryParse(json['id'].toString()) ?? 0,
+      biayaToko: int.tryParse(json['biaya_toko'].toString()) ?? 0,
+      bensin: int.tryParse(json['bensin'].toString()) ?? 0,
+      bulan: json['bulan'].toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'biaya_toko': biayaToko, 'bensin': bensin, 'bulan': bulan};
+  }
+
+  // Base URL API kamu (ubah sesuai IP / domain backend)
+  static const String baseUrl = "http://192.168.1.96:3000/api";
+
+  /// GET semua biaya operasional
+  static Future<List<BiayaOperasional>> fetchAll() async {
+    final url = Uri.parse('$baseUrl/adminTampilBiayaOperasional');
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      final List dataList = body['data'];
+      return dataList.map((e) => BiayaOperasional.fromJson(e)).toList();
+    } else {
+      throw Exception("Gagal fetch biaya operasional: ${response.statusCode}");
+    }
+  }
+
+  /// POST tambah biaya operasional
+  static Future<bool> tambah(BiayaOperasional biaya) async {
+    final url = Uri.parse('$baseUrl/adminTambahBiayaOperasional');
+    final response = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(biaya.toJson()),
+    );
+
+    return response.statusCode == 201;
+  }
+
+  /// PATCH update biaya operasional
+  static Future<bool> update(int id, BiayaOperasional biaya) async {
+    final url = Uri.parse('$baseUrl/adminUpdateBiayaOperasional/$id');
+    final response = await http.patch(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(biaya.toJson()),
+    );
+
+    return response.statusCode == 200;
+  }
+
+  /// DELETE biaya operasional
+  static Future<bool> delete(int id) async {
+    final url = Uri.parse('$baseUrl/adminDeleteBiayaOperasional/$id');
+    final response = await http.delete(url);
+
+    return response.statusCode == 200;
+  }
+}
+
 //CLASS GET
 class JumlahVerifikasi {
   final int jumlahPending;
@@ -131,6 +299,7 @@ class LaporanHarian {
   final int totalHarian;
   final int totalKeuntunganHarian;
   final int gajiKaryawanHarian;
+  final int biayaOperasionalHarian;
   final int keuntunganBersih;
 
   LaporanHarian({
@@ -142,20 +311,22 @@ class LaporanHarian {
     required this.totalHarian,
     required this.totalKeuntunganHarian,
     required this.gajiKaryawanHarian,
+    required this.biayaOperasionalHarian,
     required this.keuntunganBersih,
   });
 
   factory LaporanHarian.fromJson(Map<String, dynamic> json) {
     return LaporanHarian(
-      tanggal: json['tanggal'],
-      totalPenjualanOffline: json['total_penjualan_offline'],
-      totalPenjualanOnline: json['total_penjualan_online'],
-      keuntunganPenjualanOffline: json['keuntungan_penjualan_offline'],
-      keuntunganPenjualanOnline: json['keuntungan_penjualan_online'],
-      totalHarian: json['total_harian'],
-      totalKeuntunganHarian: json['total_keuntungan_harian'],
-      gajiKaryawanHarian: json['gaji_karyawan_harian'],
-      keuntunganBersih: json['keuntungan_bersih'],
+      tanggal: json['tanggal'] ?? '',
+      totalPenjualanOffline: json['total_penjualan_offline'] ?? 0,
+      totalPenjualanOnline: json['total_penjualan_online'] ?? 0,
+      keuntunganPenjualanOffline: json['keuntungan_penjualan_offline'] ?? 0,
+      keuntunganPenjualanOnline: json['keuntungan_penjualan_online'] ?? 0,
+      totalHarian: json['total_harian'] ?? 0,
+      totalKeuntunganHarian: json['total_keuntungan_harian'] ?? 0,
+      gajiKaryawanHarian: json['gaji_karyawan_harian'] ?? 0,
+      biayaOperasionalHarian: json['biaya_operasional_harian'] ?? 0,
+      keuntunganBersih: json['keuntungan_bersih'] ?? 0,
     );
   }
 
@@ -168,7 +339,7 @@ class LaporanHarian {
         final List dataList = body['data'];
         return dataList.map((e) => LaporanHarian.fromJson(e)).toList();
       } else {
-        return [];
+        throw Exception('Gagal fetch data: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Gagal mengambil data laporan harian: $e');
@@ -634,6 +805,7 @@ class DetailPengiriman {
 
 class ProdukPerluRestok {
   String namaProduk;
+  String kategori;
   String linkGambarVarian;
   String warna;
   int ukuran;
@@ -641,15 +813,18 @@ class ProdukPerluRestok {
 
   ProdukPerluRestok({
     required this.namaProduk,
+    required this.kategori,
     required this.linkGambarVarian,
     required this.warna,
     required this.ukuran,
     required this.stok,
   });
 
-  static Future<List<ProdukPerluRestok>> getDataProdukPerluRestok() async {
+  static Future<Map<String, dynamic>> getDataProdukPerluRestok({
+    String kategori = 'all',
+  }) async {
     final url = Uri.parse(
-      'http://192.168.1.96:3000/api/adminTampilProdukPerluRestok',
+      'http://192.168.1.96:3000/api/adminTampilProdukPerluRestok${kategori != 'all' ? '?kategori=$kategori' : ''}',
     );
 
     try {
@@ -659,24 +834,34 @@ class ProdukPerluRestok {
       );
 
       if (hasilResponse.statusCode == 200 || hasilResponse.statusCode == 201) {
-        final List<dynamic> data = jsonDecode(hasilResponse.body)['data'];
-        return data.map((item) {
-          return ProdukPerluRestok(
-            namaProduk: item['nama_produk'].toString(),
-            linkGambarVarian: item['link_gambar_varian'].toString(),
-            warna: item['warna'].toString(),
-            ukuran:
-                item['ukuran'] is int
-                    ? item['ukuran']
-                    : int.tryParse(item['ukuran'].toString()) ?? 0,
-            stok:
-                item['stok'] is int
-                    ? item['stok']
-                    : int.tryParse(item['stok'].toString()) ?? 0,
-          );
-        }).toList();
+        final responseData = jsonDecode(hasilResponse.body);
+        final List<dynamic> data = responseData['data'] ?? [];
+        final List<dynamic> kategoriList = responseData['kategori'] ?? [];
+
+        List<ProdukPerluRestok> produkList =
+            data.map((item) {
+              return ProdukPerluRestok(
+                namaProduk: item['nama_produk'].toString(),
+                kategori: item['kategori'].toString(),
+                linkGambarVarian: item['link_gambar_varian'].toString(),
+                warna: item['warna'].toString(),
+                ukuran:
+                    item['ukuran'] is int
+                        ? item['ukuran']
+                        : int.tryParse(item['ukuran'].toString()) ?? 0,
+                stok:
+                    item['stok'] is int
+                        ? item['stok']
+                        : int.tryParse(item['stok'].toString()) ?? 0,
+              );
+            }).toList();
+
+        List<String> availableKategori =
+            kategoriList.map((k) => k['kategori'].toString()).toList();
+
+        return {'produk': produkList, 'kategori': availableKategori};
       } else {
-        return [];
+        return {'produk': <ProdukPerluRestok>[], 'kategori': <String>[]};
       }
     } catch (e) {
       throw Exception('Gagal memuat data produk perlu restok: $e');
@@ -2140,20 +2325,23 @@ class PenggunaPembeli {
 
 //Khusus tambah keranjang admin
 class TambahKeranjangAdmin {
-  String id_varian_produk;
+  String idVarianProduk;
   String jumlahOrder;
+  String? hargaKhusus; // opsional
 
   TambahKeranjangAdmin({
-    required this.id_varian_produk,
+    required this.idVarianProduk,
     required this.jumlahOrder,
+    this.hargaKhusus,
   });
 
   static Future<String?> addToKeranjang(
     String idPengguna,
-    String id_varian_produk,
-    String jumlahOrder,
-  ) async {
-    if (id_varian_produk.isEmpty || jumlahOrder.isEmpty) {
+    String idVarianProduk,
+    String jumlahOrder, {
+    String? hargaKhusus,
+  }) async {
+    if (idVarianProduk.isEmpty || jumlahOrder.isEmpty) {
       throw Exception('ID varian produk dan jumlah order wajib diisi.');
     }
 
@@ -2164,7 +2352,6 @@ class TambahKeranjangAdmin {
 
     const storage = FlutterSecureStorage();
     var token = await storage.read(key: 'token');
-
     if (token == null) {
       throw Exception('Token tidak ditemukan. Silakan login terlebih dahulu.');
     }
@@ -2173,13 +2360,22 @@ class TambahKeranjangAdmin {
       "http://192.168.1.96:3000/api/adminTambahKeranjang/$idPengguna",
     );
 
+    // body dinamis
+    final body = {
+      'id_varian_produk': idVarianProduk,
+      'jumlah_order': jumlahOrder,
+    };
+    if (hargaKhusus != null && hargaKhusus.isNotEmpty) {
+      body['harga_khusus'] = hargaKhusus;
+    }
+
     var response = await http.post(
       url,
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: {'id_varian_produk': id_varian_produk, 'jumlah_order': jumlahOrder},
+      body: body,
     );
 
     try {
