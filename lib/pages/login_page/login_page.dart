@@ -5,6 +5,7 @@ import 'package:frontend/pages/karyawan_pages/main_karyawan.dart';
 import 'package:frontend/pages/lupa_password_pages/lupa_password.dart';
 import 'package:frontend/pages/pembeli_pages/main_pembeli.dart';
 import 'package:frontend/pages/register_page/register_page.dart';
+import 'package:frontend/services/notification_service.dart';
 import 'package:toastification/toastification.dart';
 
 class LoginPage extends StatefulWidget {
@@ -429,6 +430,7 @@ class _LoginPageState extends State<LoginPage> {
                                                     const Duration(seconds: 5),
                                                 icon: const Icon(Icons.check),
                                               );
+                                              await NotificationService.saveTokenToBackend();
                                               await Navigator.of(
                                                 context,
                                               ).pushReplacement(
@@ -455,6 +457,7 @@ class _LoginPageState extends State<LoginPage> {
                                                     const Duration(seconds: 5),
                                                 icon: const Icon(Icons.check),
                                               );
+                                              await NotificationService.saveTokenToBackend();
                                               await Navigator.of(
                                                 context,
                                               ).pushReplacement(
@@ -481,6 +484,7 @@ class _LoginPageState extends State<LoginPage> {
                                                     const Duration(seconds: 5),
                                                 icon: const Icon(Icons.check),
                                               );
+                                              await NotificationService.saveTokenToBackend();
                                               await Navigator.of(
                                                 context,
                                               ).pushReplacement(

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "363520000709",
+    "project_id": "wijayaproject-cb3c9",
+    "storage_bucket": "wijayaproject-cb3c9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:363520000709:android:7057214699a443ce3726ac",
+        "android_client_info": {
+          "package_name": "com.example.frontend"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB1Q3DaFbEay_PWzy4xDbDE6maoHbFsiCM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

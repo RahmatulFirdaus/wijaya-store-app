@@ -20,6 +20,7 @@ import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/manajemen_p
 import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/pembayaran_online/admin_lobby_pembayaran_online.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_pengiriman/admin_pengiriman.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:frontend/pages/admin_pages/pages/admin_send_promo.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
@@ -543,6 +544,20 @@ class _MainAdminState extends State<MainAdmin> {
             isLoading: _isLoadingVerifikasiData, // Tambahkan ini
             onTap:
                 (context) => _navigateToPage(context, const AdminLobbyAkun()),
+          ),
+          AdminMenuItem(
+            title: 'Notifikasi & Promosi',
+            icon: Icons.notifications_rounded,
+            color: verifikasiStyle['color'], // Ganti dari static color
+            gradient: verifikasiStyle['gradient'], // Ganti dari static gradient
+            isUrgent: verifikasiStyle['isUrgent'], // Tambahkan ini
+            notificationCount: _verifikasiCount, // Tambahkan ini
+            notificationText: verifikasiStyle['statusText'], // Tambahkan ini
+            showNotification: true, // Tambahkan ini
+            isLoading: _isLoadingVerifikasiData, // Tambahkan ini
+            onTap:
+                (context) =>
+                    _navigateToPage(context, const AdminSendPromoPage()),
           ),
         ],
       ),

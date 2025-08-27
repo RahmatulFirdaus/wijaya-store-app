@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/services/notification_service.dart';
 import 'package:get/get.dart';
 import 'package:frontend/pages/pembeli_pages/home_pembeli.dart';
 import 'package:frontend/pages/pembeli_pages/keranjang_pembeli.dart';
@@ -35,6 +36,7 @@ class _MainPembeliState extends State<MainPembeli>
   void dispose() {
     _animationController.dispose();
     super.dispose();
+    NotificationService.saveTokenToBackend();
   }
 
   @override
