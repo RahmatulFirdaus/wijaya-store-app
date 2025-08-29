@@ -6,8 +6,84 @@ import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
 import 'dart:async';
 
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+class ProdukTerlaris {
+  final String namaProduk;
+  final int totalTerjual;
+
+  ProdukTerlaris({required this.namaProduk, required this.totalTerjual});
+
+  factory ProdukTerlaris.fromJson(Map<String, dynamic> json) {
+    return ProdukTerlaris(
+      namaProduk: json['nama_produk'],
+      totalTerjual: int.parse(json['total_terjual']),
+    );
+  }
+}
+
+class RatingProduk {
+  final String namaProduk;
+  final double rataRating;
+  final int jumlahReview;
+
+  RatingProduk({
+    required this.namaProduk,
+    required this.rataRating,
+    required this.jumlahReview,
+  });
+
+  factory RatingProduk.fromJson(Map<String, dynamic> json) {
+    return RatingProduk(
+      namaProduk: json['nama_produk'],
+      rataRating: double.parse(json['rata_rating']),
+      jumlahReview: json['jumlah_review'],
+    );
+  }
+}
+
+class AdminAnalytics {
+  final int totalTransaksi;
+  final int totalPendapatan;
+  final List<ProdukTerlaris> produkTerlaris;
+  final List<RatingProduk> ratingProduk;
+
+  AdminAnalytics({
+    required this.totalTransaksi,
+    required this.totalPendapatan,
+    required this.produkTerlaris,
+    required this.ratingProduk,
+  });
+
+  factory AdminAnalytics.fromJson(Map<String, dynamic> json) {
+    final data = json['data'];
+    return AdminAnalytics(
+      totalTransaksi: data['total_transaksi'],
+      totalPendapatan: int.parse(data['total_pendapatan']),
+      produkTerlaris:
+          (data['produk_terlaris'] as List)
+              .map((e) => ProdukTerlaris.fromJson(e))
+              .toList(),
+      ratingProduk:
+          (data['rating_produk'] as List)
+              .map((e) => RatingProduk.fromJson(e))
+              .toList(),
+    );
+  }
+
+  static Future<AdminAnalytics?> fetchAnalytics() async {
+    final url = Uri.parse('http://192.168.1.96:3000/api/analytics');
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        return AdminAnalytics.fromJson(body);
+      } else {
+        return null;
+      }
+    } catch (e) {
+      throw Exception('Gagal mengambil data analytics: $e');
+    }
+  }
+}
 
 class DashboardPoint {
   final String ym; // 'YYYY-MM'

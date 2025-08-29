@@ -3,6 +3,7 @@ import 'package:frontend/models/pembeli_model.dart';
 import 'package:frontend/pages/pembeli_pages/list_chat_admin.dart';
 import 'package:frontend/pages/pembeli_pages/tampil_video_produk.dart';
 import 'package:toastification/toastification.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const String baseUrl = "http://192.168.1.96:3000/uploads/";
 
@@ -30,6 +31,32 @@ class _DetailProdukState extends State<DetailProduk> {
       widget.productId,
     );
     futureUlasan = GetDataUlasan.getDataUlasan(widget.productId);
+  }
+
+  Future<void> shareToWhatsApp(
+    String productName,
+    String hargaAwal,
+    String hargaDiskon,
+  ) async {
+    final message =
+        "🔥 Promo Spesial Wijaya Store! 🔥\n\n"
+        "👟 $productName\n"
+        "💸 Dari Rp $hargaAwal ➡️ Rp $hargaDiskon\n\n"
+        "🛍️ Promo khusus untuk pembelian via aplikasi Wijaya Store!\n"
+        "👉 Download sekarang: https://drive.google.com/file/d/1UJZAekusNhcOBckYBMlsd3TUilEZB-9n/view?usp=sharing";
+
+    // gunakan schema whatsapp
+    final url = "whatsapp://send?text=${Uri.encodeComponent(message)}";
+
+    final uri = Uri.parse(url);
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      // fallback: buka wa.me lewat browser
+      final webUrl = "https://wa.me/?text=${Uri.encodeComponent(message)}";
+      await launchUrl(Uri.parse(webUrl), mode: LaunchMode.externalApplication);
+    }
   }
 
   void refreshProductData() {
@@ -1258,6 +1285,26 @@ class _DetailProdukState extends State<DetailProduk> {
                               Icons.chat_bubble_outline,
                               color: Colors.grey.shade700,
                             ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: IconButton(
+                            onPressed: () {
+                              shareToWhatsApp(
+                                product.namaProduk,
+                                formatPrice(product.hargaAwal),
+                                formatPrice(product.harga),
+                              );
+                            },
+                            icon: const Icon(Icons.share, color: Colors.green),
                           ),
                         ),
                         const SizedBox(width: 12),

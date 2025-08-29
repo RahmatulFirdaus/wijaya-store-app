@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:frontend/models/admin_model.dart';
 import 'package:frontend/pages/admin_pages/list_chat_pembeli.dart';
@@ -21,6 +22,7 @@ import 'package:frontend/pages/admin_pages/pages/admin_pembeli_pages/pembayaran_
 import 'package:frontend/pages/admin_pages/pages/admin_pengiriman/admin_pengiriman.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:frontend/pages/admin_pages/pages/admin_send_promo.dart';
+import 'package:frontend/services/analytics_service.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
@@ -91,8 +93,11 @@ class _MainAdminState extends State<MainAdmin> {
   bool _isLoadingRestockData = true;
   int _verifikasiCount = 0;
   bool _isLoadingVerifikasiData = true;
+  AdminAnalytics? analytics;
+  bool loadingAnalytics = true;
   DashboardSummary? summary;
   List<DashboardPoint> data = [];
+  final currencyFormat = NumberFormat.currency(locale: 'id', symbol: 'Rp');
   bool loadingDashboard = true;
   // Organized menu items by categories
   late List<MenuCategory> _menuCategories;
@@ -119,7 +124,25 @@ class _MainAdminState extends State<MainAdmin> {
     _loadRestockData();
     _loadVerifikasiData();
     _loadDashboardData(); // TAMBAHAN BARU
+    _loadAnalyticsData();
     _initializeMenuCategories();
+  }
+
+  Future<void> _loadAnalyticsData() async {
+    setState(() => loadingAnalytics = true);
+    try {
+      final analyticsData = await AdminAnalytics.fetchAnalytics();
+      setState(() {
+        analytics = analyticsData;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error loading analytics: $e')));
+    } finally {
+      if (mounted) setState(() => loadingAnalytics = false);
+    }
   }
 
   Future<void> _loadDashboardData() async {
@@ -169,13 +192,15 @@ class _MainAdminState extends State<MainAdmin> {
     setState(() {
       _isLoadingRestockData = true;
       _isLoadingVerifikasiData = true;
-      loadingDashboard = true; // TAMBAHAN BARU
+      loadingDashboard = true;
+      loadingAnalytics = true; // Tambahkan ini
     });
 
     await Future.wait([
       _loadRestockData(),
       _loadVerifikasiData(),
-      _loadDashboardData(), // TAMBAHAN BARU
+      _loadDashboardData(),
+      _loadAnalyticsData(), // Tambahkan ini
     ]);
   }
 
@@ -812,32 +837,413 @@ class _MainAdminState extends State<MainAdmin> {
     );
   }
 
+  // Dashboard Cards Section
   Widget _buildDashboardCards() {
-    if (loadingDashboard) {
+    if (loadingDashboard || loadingAnalytics) {
       return const Padding(
         padding: EdgeInsets.all(20),
         child: Center(child: CircularProgressIndicator()),
       );
     }
 
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
+    return Column(
       children: [
-        _infoCard('Omzet Hari Ini', summary?.todayOmzet ?? 0),
-        _infoCard('Profit Hari Ini', summary?.todayProfit ?? 0),
-        _infoCard('Omzet Bulan Ini', summary?.monthOmzet ?? 0),
-        _infoCard('Profit Bulan Ini', summary?.monthProfit ?? 0),
+        _buildMainMetricsCards(),
+        const SizedBox(height: 20),
+        _buildAnalyticsCards(),
       ],
     );
   }
 
+  // Main metrics cards section
+  Widget _buildMainMetricsCards() {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        _buildInfoCard('Omzet Hari Ini', summary?.todayOmzet ?? 0),
+        _buildInfoCard('Profit Hari Ini', summary?.todayProfit ?? 0),
+        _buildInfoCard('Omzet Bulan Ini', summary?.monthOmzet ?? 0),
+        _buildInfoCard('Profit Bulan Ini', summary?.monthProfit ?? 0),
+        _buildInfoCard(
+          'Total Transaksi',
+          analytics?.totalTransaksi ?? 0,
+          isCount: true,
+        ),
+      ],
+    );
+  }
+
+  // Analytics cards section
+  Widget _buildAnalyticsCards() {
+    if (analytics == null) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        if (analytics!.produkTerlaris.isNotEmpty) ...[
+          _buildBestSellingChart(),
+          const SizedBox(height: 16),
+        ],
+        if (analytics!.ratingProduk.isNotEmpty) ...[
+          _buildAnalyticsSection(
+            'Rating Produk Teratas',
+            Icons.star_rate,
+            _buildRatingChart(),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // Analytics section wrapper
+  Widget _buildAnalyticsSection(String title, IconData icon, Widget chart) {
+    return Card(
+      color: Colors.white,
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader(title, icon),
+            const SizedBox(height: 16),
+            chart,
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Section header with icon and title
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, color: const Color(0xFF667EEA), size: 24),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF2D3748),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Best selling products chart
+  Widget _buildBestSellingChart() {
+    final data = analytics!.produkTerlaris.take(5).toList();
+
+    if (data.isEmpty) {
+      return const SizedBox(
+        height: 200,
+        child: Center(
+          child: Text(
+            'Tidak ada data produk terlaris',
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+        ),
+      );
+    }
+
+    final maxValue =
+        data
+            .map((e) => e.totalTerjual)
+            .reduce((a, b) => a > b ? a : b)
+            .toDouble();
+
+    // Add padding to maxY for better visualization
+    final chartMaxY =
+        maxValue < 10 ? maxValue + 2 : maxValue + (maxValue * 0.2);
+
+    return Container(
+      height: 240,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.trending_up, color: Colors.blue.shade600, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'Produk Terlaris',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceEvenly,
+                maxY: chartMaxY,
+                minY: 0,
+                barGroups: _buildBarGroups(data),
+                titlesData: _buildBarChartTitles(data),
+                gridData: FlGridData(
+                  show: true,
+                  drawHorizontalLine: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: maxValue > 10 ? maxValue / 5 : 1,
+                  getDrawingHorizontalLine: (value) {
+                    return FlLine(
+                      color: Colors.grey.shade300,
+                      strokeWidth: 0.5,
+                    );
+                  },
+                ),
+                borderData: FlBorderData(
+                  show: true,
+                  border: Border(
+                    left: BorderSide(color: Colors.grey.shade400, width: 1),
+                    bottom: BorderSide(color: Colors.grey.shade400, width: 1),
+                  ),
+                ),
+                barTouchData: BarTouchData(
+                  enabled: true,
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      final product = data[groupIndex];
+                      return BarTooltipItem(
+                        '${product.namaProduk}\n${rod.toY.toInt()} terjual',
+                        const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<BarChartGroupData> _buildBarGroups(List<dynamic> data) {
+    return data.asMap().entries.map((entry) {
+      final index = entry.key;
+      final product = entry.value;
+
+      return BarChartGroupData(
+        x: index,
+        barRods: [
+          BarChartRodData(
+            toY: product.totalTerjual.toDouble(),
+            gradient: LinearGradient(
+              colors: [Colors.blue.shade400, Colors.blue.shade600],
+              begin: Alignment.bottomCenter,
+              end: Alignment.topCenter,
+            ),
+            width: 24,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(4),
+              topRight: Radius.circular(4),
+            ),
+            backDrawRodData: BackgroundBarChartRodData(
+              show: true,
+              toY:
+                  data
+                      .map((e) => e.totalTerjual)
+                      .reduce((a, b) => a > b ? a : b)
+                      .toDouble() +
+                  (data
+                          .map((e) => e.totalTerjual)
+                          .reduce((a, b) => a > b ? a : b) *
+                      0.2),
+              color: Colors.grey.shade100,
+            ),
+          ),
+        ],
+      );
+    }).toList();
+  }
+
+  FlTitlesData _buildBarChartTitles(List<dynamic> data) {
+    return FlTitlesData(
+      show: true,
+      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+      leftTitles: AxisTitles(
+        sideTitles: SideTitles(
+          showTitles: true,
+          reservedSize: 30,
+          interval:
+              data.map((e) => e.totalTerjual).reduce((a, b) => a > b ? a : b) >
+                      10
+                  ? (data
+                              .map((e) => e.totalTerjual)
+                              .reduce((a, b) => a > b ? a : b) /
+                          5)
+                      .toDouble()
+                  : 1,
+          getTitlesWidget: (value, meta) {
+            if (value == 0) return const Text('');
+            return Text(
+              value.toInt().toString(),
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 10,
+                fontWeight: FontWeight.w400,
+              ),
+            );
+          },
+        ),
+      ),
+      bottomTitles: AxisTitles(
+        sideTitles: SideTitles(
+          showTitles: true,
+          reservedSize: 50, // tambahkan tinggi agar muat 2 baris
+          getTitlesWidget: (value, meta) {
+            if (value.toInt() >= data.length) return const Text('');
+
+            final product = data[value.toInt()];
+
+            // Pecah nama produk setiap 8 karakter agar bisa turun ke bawah
+            String displayName = product.namaProduk;
+            if (displayName.length > 8) {
+              displayName =
+                  displayName
+                      .replaceAllMapped(
+                        RegExp(r'.{1,8}'),
+                        (match) => '${match.group(0)}\n',
+                      )
+                      .trim();
+            }
+
+            return Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                displayName,
+                style: TextStyle(
+                  color: Colors.grey.shade700,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  // Bottom title widget for bar chart
+  Widget _buildBottomTitleWidget(double value, List data) {
+    if (value.toInt() >= data.length) return const SizedBox.shrink();
+
+    final product = data[value.toInt()];
+    final displayName =
+        product.namaProduk.length > 15
+            ? '${product.namaProduk.substring(0, 15)}...'
+            : product.namaProduk;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Text(
+        displayName,
+        style: const TextStyle(fontSize: 10),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  // Product rating chart
+  Widget _buildRatingChart() {
+    final data = analytics!.ratingProduk.take(5).toList();
+
+    return Column(
+      children: data.map((rating) => _buildRatingItem(rating)).toList(),
+    );
+  }
+
+  // Individual rating item
+  Widget _buildRatingItem(dynamic rating) {
+    final displayName =
+        rating.namaProduk.length > 30
+            ? '${rating.namaProduk.substring(0, 30)}...'
+            : rating.namaProduk;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(
+              displayName,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF2D3748),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(flex: 1, child: _buildRatingDisplay(rating)),
+        ],
+      ),
+    );
+  }
+
+  // Rating display with star and numbers
+  Widget _buildRatingDisplay(dynamic rating) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        const Icon(Icons.star, color: Colors.amber, size: 16),
+        const SizedBox(width: 4),
+        Text(
+          rating.rataRating.toStringAsFixed(1),
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF2D3748),
+          ),
+        ),
+        Text(
+          ' (${rating.jumlahReview})',
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+      ],
+    );
+  }
+
+  // Sales chart with forecast
   Widget _buildDashboardChart() {
     if (loadingDashboard || data.isEmpty) {
       return const SizedBox.shrink();
     }
-
-    final label = _labels();
 
     return Padding(
       padding: const EdgeInsets.only(top: 16),
@@ -854,77 +1260,9 @@ class _MainAdminState extends State<MainAdmin> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              SizedBox(
-                height: 260,
-                child: LineChart(
-                  LineChartData(
-                    lineBarsData: [
-                      LineChartBarData(
-                        spots: _spotsTotal(forecast: false),
-                        isCurved: true,
-                        color: const Color(0xFF667EEA),
-                        barWidth: 3,
-                        dotData: FlDotData(show: false),
-                      ),
-                      LineChartBarData(
-                        spots: _spotsTotal(forecast: true),
-                        isCurved: true,
-                        dashArray: [8, 6],
-                        color: const Color(0xFFFF9800),
-                        barWidth: 3,
-                        dotData: FlDotData(show: false),
-                      ),
-                    ],
-                    titlesData: FlTitlesData(
-                      leftTitles: const AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 42,
-                        ),
-                      ),
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          getTitlesWidget: (v, meta) {
-                            final i = v.toInt();
-                            if (i < 0 || i >= label.length) {
-                              return const SizedBox.shrink();
-                            }
-                            if (i % 3 != 0) return const SizedBox.shrink();
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 6),
-                              child: Text(
-                                label[i],
-                                style: const TextStyle(fontSize: 10),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      topTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                      rightTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                    ),
-                    gridData: const FlGridData(show: true),
-                    borderData: FlBorderData(show: true),
-                  ),
-                ),
-              ),
+              _buildLineChart(),
               const SizedBox(height: 8),
-              Row(
-                children: const [
-                  _LegendDot(),
-                  SizedBox(width: 6),
-                  Text('Historis'),
-                  SizedBox(width: 16),
-                  _LegendDot(dashed: true),
-                  SizedBox(width: 6),
-                  Text('Forecast'),
-                ],
-              ),
+              _buildChartLegend(),
             ],
           ),
         ),
@@ -932,196 +1270,156 @@ class _MainAdminState extends State<MainAdmin> {
     );
   }
 
-  Widget _buildDashboard() {
-    if (loadingDashboard) {
-      return const SliverToBoxAdapter(
-        child: Padding(
-          padding: EdgeInsets.all(20),
-          child: Center(child: CircularProgressIndicator()),
+  // Line chart widget
+  Widget _buildLineChart() {
+    return SizedBox(
+      height: 260,
+      child: LineChart(
+        LineChartData(
+          lineBarsData: [_buildHistoricalLine(), _buildForecastLine()],
+          titlesData: _buildLineChartTitles(),
+          gridData: const FlGridData(show: true),
+          borderData: FlBorderData(show: true),
         ),
-      );
+      ),
+    );
+  }
+
+  // Historical data line
+  LineChartBarData _buildHistoricalLine() {
+    return LineChartBarData(
+      spots: _spotsTotal(forecast: false),
+      isCurved: true,
+      color: const Color(0xFF667EEA),
+      barWidth: 3,
+      dotData: FlDotData(show: false),
+    );
+  }
+
+  // Forecast data line
+  LineChartBarData _buildForecastLine() {
+    return LineChartBarData(
+      spots: _spotsTotal(forecast: true),
+      isCurved: true,
+      dashArray: [8, 6],
+      color: const Color(0xFFFF9800),
+      barWidth: 3,
+      dotData: FlDotData(show: false),
+    );
+  }
+
+  // Line chart titles configuration
+  FlTitlesData _buildLineChartTitles() {
+    final labels = _labels();
+
+    return FlTitlesData(
+      leftTitles: const AxisTitles(
+        sideTitles: SideTitles(showTitles: true, reservedSize: 42),
+      ),
+      bottomTitles: AxisTitles(
+        sideTitles: SideTitles(
+          showTitles: true,
+          getTitlesWidget: (v, meta) => _buildLineChartBottomTitle(v, labels),
+        ),
+      ),
+      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+    );
+  }
+
+  // Bottom title widget for line chart
+  Widget _buildLineChartBottomTitle(double v, List<String> labels) {
+    final i = v.toInt();
+    if (i < 0 || i >= labels.length || i % 3 != 0) {
+      return const SizedBox.shrink();
     }
 
-    final label = _labels();
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Text(labels[i], style: const TextStyle(fontSize: 10)),
+    );
+  }
 
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+  // Chart legend
+  Widget _buildChartLegend() {
+    return const Row(
+      children: [
+        _LegendDot(),
+        SizedBox(width: 6),
+        Text('Historis'),
+        SizedBox(width: 16),
+        _LegendDot(dashed: true),
+        SizedBox(width: 6),
+        Text('Forecast'),
+      ],
+    );
+  }
+
+  // Info card widget
+  Widget _buildInfoCard(String title, num value, {bool isCount = false}) {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFFFFFF), Color(0xFFF8FAFC)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        padding: const EdgeInsets.all(16),
         child: Column(
-          children: [
-            // Cards summary
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                _infoCard('Omzet Hari Ini', summary?.todayOmzet ?? 0),
-                _infoCard('Profit Hari Ini', summary?.todayProfit ?? 0),
-                _infoCard('Omzet Bulan Ini', summary?.monthOmzet ?? 0),
-                _infoCard('Profit Bulan Ini', summary?.monthProfit ?? 0),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // LineChart total
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Grafik Penjualan (Total)',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: 260,
-                      child: LineChart(
-                        LineChartData(
-                          lineBarsData: [
-                            LineChartBarData(
-                              spots: _spotsTotal(forecast: false),
-                              isCurved: true,
-                              color: const Color(0xFF667EEA),
-                              barWidth: 3,
-                              dotData: FlDotData(show: false),
-                            ),
-                            LineChartBarData(
-                              spots: _spotsTotal(forecast: true),
-                              isCurved: true,
-                              dashArray: [8, 6],
-                              color: const Color(0xFFFF9800),
-                              barWidth: 3,
-                              dotData: FlDotData(show: false),
-                            ),
-                          ],
-                          titlesData: FlTitlesData(
-                            leftTitles: const AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                reservedSize: 42,
-                              ),
-                            ),
-                            bottomTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                getTitlesWidget: (v, meta) {
-                                  final i = v.toInt();
-                                  if (i < 0 || i >= label.length) {
-                                    return const SizedBox.shrink();
-                                  }
-                                  if (i % 3 != 0)
-                                    return const SizedBox.shrink();
-                                  return Padding(
-                                    padding: const EdgeInsets.only(top: 6),
-                                    child: Text(
-                                      label[i],
-                                      style: const TextStyle(fontSize: 10),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                            topTitles: const AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-                            rightTitles: const AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-                          ),
-                          gridData: const FlGridData(show: true),
-                          borderData: FlBorderData(show: true),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: const [
-                        _LegendDot(),
-                        SizedBox(width: 6),
-                        Text('Historis'),
-                        SizedBox(width: 16),
-                        _LegendDot(dashed: true),
-                        SizedBox(width: 6),
-                        Text('Forecast'),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _infoCard(String title, int value) {
-    return SizedBox(
-      width: (MediaQuery.of(context).size.width - 12 * 3) / 2,
-      child: Card(
-        elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            gradient: const LinearGradient(
-              colors: [Color(0xFFFFFFFF), Color(0xFFF8FAFC)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Rp ${_fmt(value)}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2D3748),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategorizedMenu() {
-    return SliverList(
-      delegate: SliverChildBuilderDelegate((context, categoryIndex) {
-        final category = _menuCategories[categoryIndex];
-        return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            if (categoryIndex > 0) const SizedBox(height: 32),
-            _buildCategoryHeader(category),
-            const SizedBox(height: 16),
-            _buildCategoryGrid(category),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF475569),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isCount ? value.toString() : currencyFormat.format(value),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0F172A),
+              ),
+            ),
           ],
-        );
-      }, childCount: _menuCategories.length),
+        ),
+      ),
+    );
+  }
+
+  // Card title widget
+  Widget _buildCardTitle(String title) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 12,
+        color: Colors.grey[600],
+        fontWeight: FontWeight.w500,
+      ),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  // Card value widget
+  Widget _buildCardValue(int value, bool isCount) {
+    return Text(
+      isCount ? value.toString() : 'Rp ${_fmt(value)}',
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+        color: Color(0xFF2D3748),
+      ),
     );
   }
 

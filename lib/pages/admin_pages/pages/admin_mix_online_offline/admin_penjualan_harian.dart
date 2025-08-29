@@ -20,11 +20,30 @@ class _PenjualanHarianPageState extends State<PenjualanHarianPage>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
+  // Date filter variables
+  DateTime? startDate;
+  DateTime? endDate;
+  DateFormat? displayFormatter;
+
   @override
   void initState() {
     super.initState();
-    initializeDateFormatting('id_ID', null);
+    _initializeLocale();
     _setupAnimations();
+    _setDefaultDateRange();
+  }
+
+  Future<void> _initializeLocale() async {
+    await initializeDateFormatting('id_ID', null);
+    setState(() {
+      displayFormatter = DateFormat('dd MMM yyyy', 'id_ID');
+    });
+  }
+
+  void _setDefaultDateRange() {
+    final now = DateTime.now();
+    endDate = DateTime(now.year, now.month, now.day);
+    startDate = endDate!.subtract(const Duration(days: 6));
   }
 
   void _setupAnimations() {
@@ -51,41 +70,328 @@ class _PenjualanHarianPageState extends State<PenjualanHarianPage>
       appBar: _buildModernAppBar(),
       body: FadeTransition(
         opacity: _fadeAnimation,
-        child: FutureBuilder<Map<String, dynamic>>(
-          future: _fetchAllData(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return _buildLoadingState();
-            }
-            if (snapshot.hasError) {
-              return _buildErrorState(snapshot.error.toString());
-            }
+        child: Column(
+          children: [
+            _buildDateFilterSection(),
+            Expanded(
+              child: FutureBuilder<Map<String, dynamic>>(
+                future: _fetchAllData(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return _buildLoadingState();
+                  }
+                  if (snapshot.hasError) {
+                    return _buildErrorState(snapshot.error.toString());
+                  }
 
-            final data = snapshot.data!;
-            final onlineData = data['online'] as List<DataTransaksiOnlineFull>;
-            final offlineData = data['offline'] as List<DataTransaksiOffline>;
-            final laporanData = data['laporan'] as List<LaporanHarian>;
+                  final data = snapshot.data!;
+                  final onlineData =
+                      data['online'] as List<DataTransaksiOnlineFull>;
+                  final offlineData =
+                      data['offline'] as List<DataTransaksiOffline>;
+                  final laporanData = data['laporan'] as List<LaporanHarian>;
+                  final filteredLaporanData = _filterLaporanByDate(laporanData);
 
-            return Column(
-              children: [
-                _buildToggleSection(),
-                _buildImprovedStats(onlineData, offlineData, laporanData),
-                Expanded(child: _buildTransactionList(onlineData, offlineData)),
-              ],
-            );
-          },
+                  return Column(
+                    children: [
+                      _buildToggleSection(),
+                      _buildImprovedStats(
+                        onlineData,
+                        offlineData,
+                        filteredLaporanData,
+                      ),
+                      Expanded(
+                        child: _buildTransactionList(onlineData, offlineData),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  Widget _buildDateFilterSection() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.date_range_outlined,
+                color: Colors.grey[600],
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Filter Periode',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[800],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _buildDateField('Dari Tanggal', startDate, true)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildDateField('Sampai Tanggal', endDate, false),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildQuickFilterButton('Hari Ini', () => _setTodayFilter()),
+              const SizedBox(width: 8),
+              _buildQuickFilterButton('7 Hari', () => _setWeekFilter()),
+              const SizedBox(width: 8),
+              _buildQuickFilterButton('30 Hari', () => _setMonthFilter()),
+              const Spacer(),
+              _buildApplyButton(),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateField(String label, DateTime? date, bool isStartDate) {
+    return GestureDetector(
+      onTap: () => _selectDate(isStartDate),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey[300]!),
+          borderRadius: BorderRadius.circular(8),
+          color: Colors.grey[50],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              date != null
+                  ? (displayFormatter?.format(date) ?? "Loading...")
+                  : 'Pilih tanggal',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: date != null ? Colors.black : Colors.grey[400],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickFilterButton(String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[700],
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildApplyButton() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: TextButton.icon(
+        onPressed: () => setState(() {}),
+        icon: const Icon(Icons.refresh, color: Colors.white, size: 16),
+        label: const Text(
+          'Terapkan',
+          style: TextStyle(color: Colors.white, fontSize: 12),
+        ),
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _selectDate(bool isStartDate) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate:
+          isStartDate
+              ? (startDate ?? DateTime.now())
+              : (endDate ?? DateTime.now()),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      locale: const Locale('id', 'ID'),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(primary: Colors.black),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        if (isStartDate) {
+          startDate = picked;
+          // Adjust end date if it's before start date
+          if (endDate != null && endDate!.isBefore(picked)) {
+            endDate = picked;
+          }
+        } else {
+          endDate = picked;
+          // Adjust start date if it's after end date
+          if (startDate != null && startDate!.isAfter(picked)) {
+            startDate = picked;
+          }
+        }
+      });
+    }
+  }
+
+  void _setTodayFilter() {
+    setState(() {
+      final now = DateTime.now();
+      startDate = DateTime(now.year, now.month, now.day);
+      endDate = startDate;
+    });
+  }
+
+  void _setWeekFilter() {
+    setState(() {
+      final now = DateTime.now();
+      endDate = DateTime(now.year, now.month, now.day);
+      startDate = endDate!.subtract(const Duration(days: 6));
+    });
+  }
+
+  void _setMonthFilter() {
+    setState(() {
+      final now = DateTime.now();
+      endDate = DateTime(now.year, now.month, now.day);
+      startDate = endDate!.subtract(const Duration(days: 29));
+    });
+  }
+
+  List<LaporanHarian> _filterLaporanByDate(List<LaporanHarian> laporanData) {
+    if (startDate == null || endDate == null) return laporanData;
+
+    return laporanData.where((laporan) {
+      final laporanDate = DateTime.parse(laporan.tanggal);
+      final laporanDateOnly = DateTime(
+        laporanDate.year,
+        laporanDate.month,
+        laporanDate.day,
+      );
+      return laporanDateOnly.isAfter(
+            startDate!.subtract(const Duration(days: 1)),
+          ) &&
+          laporanDateOnly.isBefore(endDate!.add(const Duration(days: 1)));
+    }).toList();
+  }
+
+  List<DataTransaksiOnlineFull> _filterOnlineByDate(
+    List<DataTransaksiOnlineFull> onlineData,
+  ) {
+    if (startDate == null || endDate == null) return onlineData;
+
+    return onlineData.where((transaksi) {
+      final transaksiDate = DateTime.parse(transaksi.tanggalOrder);
+      final transaksiDateOnly = DateTime(
+        transaksiDate.year,
+        transaksiDate.month,
+        transaksiDate.day,
+      );
+      return transaksiDateOnly.isAfter(
+            startDate!.subtract(const Duration(days: 1)),
+          ) &&
+          transaksiDateOnly.isBefore(endDate!.add(const Duration(days: 1)));
+    }).toList();
+  }
+
+  List<DataTransaksiOffline> _filterOfflineByDate(
+    List<DataTransaksiOffline> offlineData,
+  ) {
+    if (startDate == null || endDate == null) return offlineData;
+
+    return offlineData.where((transaksi) {
+      final transaksiDate = DateTime.parse(transaksi.tanggal);
+      final transaksiDateOnly = DateTime(
+        transaksiDate.year,
+        transaksiDate.month,
+        transaksiDate.day,
+      );
+      return transaksiDateOnly.isAfter(
+            startDate!.subtract(const Duration(days: 1)),
+          ) &&
+          transaksiDateOnly.isBefore(endDate!.add(const Duration(days: 1)));
+    }).toList();
   }
 
   Future<Map<String, dynamic>> _fetchAllData() async {
     final transaksiData =
         await TransaksiService.fetchSemuaHasilTransaksiPenjualanHarian();
     final laporanData = await LaporanHarian.fetchLaporanHarian();
+
+    // Filter the transaction data based on date range
+    final filteredOnlineData = _filterOnlineByDate(
+      transaksiData['online'] ?? [],
+    );
+    final filteredOfflineData = _filterOfflineByDate(
+      transaksiData['offline'] ?? [],
+    );
+
     return {
-      'online': transaksiData['online'] ?? [],
-      'offline': transaksiData['offline'] ?? [],
+      'online': filteredOnlineData,
+      'offline': filteredOfflineData,
       'laporan': laporanData,
     };
   }
@@ -148,7 +454,8 @@ class _PenjualanHarianPageState extends State<PenjualanHarianPage>
   Future<void> _handlePdfGeneration() async {
     try {
       final laporan = await LaporanHarian.fetchLaporanHarian();
-      final pdf = await generateLaporanPDF(laporan);
+      final filteredLaporan = _filterLaporanByDate(laporan);
+      final pdf = await generateLaporanPDF(filteredLaporan, startDate, endDate);
       await Printing.layoutPdf(onLayout: (format) => pdf.save());
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -270,7 +577,6 @@ class _PenjualanHarianPageState extends State<PenjualanHarianPage>
     );
   }
 
-  // IMPROVED STATS SECTION - Perbaikan utama untuk tampilan card
   Widget _buildImprovedStats(
     List<DataTransaksiOnlineFull> onlineData,
     List<DataTransaksiOffline> offlineData,
@@ -282,7 +588,6 @@ class _PenjualanHarianPageState extends State<PenjualanHarianPage>
       margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
-          // Row 1: Main totals with larger cards
           Row(
             children: [
               Expanded(
@@ -307,7 +612,6 @@ class _PenjualanHarianPageState extends State<PenjualanHarianPage>
             ],
           ),
           const SizedBox(height: 12),
-          // Row 2-4: Smaller cards in 2x2 grid
           Row(
             children: [
               Expanded(
@@ -422,11 +726,10 @@ class _PenjualanHarianPageState extends State<PenjualanHarianPage>
             ],
           ),
           SizedBox(height: isMain ? 12 : 8),
-          // VALUE DIPINDAH KE BAWAH
           Text(
             value,
             style: TextStyle(
-              fontSize: isMain ? 16 : 14, // Ukuran font diperkecil
+              fontSize: isMain ? 16 : 14,
               fontWeight: FontWeight.bold,
               color: Colors.black,
             ),
@@ -434,11 +737,10 @@ class _PenjualanHarianPageState extends State<PenjualanHarianPage>
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 4),
-          // TITLE DI BAWAH VALUE
           Text(
             title,
             style: TextStyle(
-              fontSize: isMain ? 12 : 10, // Ukuran font diperkecil
+              fontSize: isMain ? 12 : 10,
               color: Colors.grey[600],
               fontWeight: FontWeight.w500,
             ),
@@ -463,7 +765,7 @@ class _PenjualanHarianPageState extends State<PenjualanHarianPage>
 
   Widget _buildOnlineTransactionList(List<DataTransaksiOnlineFull> onlineData) {
     if (onlineData.isEmpty) {
-      return _buildEmptyState('Tidak ada transaksi online hari ini');
+      return _buildEmptyState('Tidak ada transaksi online pada periode ini');
     }
 
     return ListView.builder(
@@ -558,7 +860,7 @@ class _PenjualanHarianPageState extends State<PenjualanHarianPage>
 
   Widget _buildOfflineTransactionList(List<DataTransaksiOffline> offlineData) {
     if (offlineData.isEmpty) {
-      return _buildEmptyState('Tidak ada transaksi offline hari ini');
+      return _buildEmptyState('Tidak ada transaksi offline pada periode ini');
     }
 
     return ListView.builder(
@@ -740,34 +1042,37 @@ class _PenjualanHarianPageState extends State<PenjualanHarianPage>
 
   Widget _buildEmptyState(String message) {
     return Center(
-      child: Container(
-        margin: const EdgeInsets.all(24),
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey[200]!),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.inbox_outlined, color: Colors.grey[400], size: 48),
-            const SizedBox(height: 16),
-            Text(
-              'Belum Ada Data',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
+      child: SingleChildScrollView(
+        // ⬅️ Tambahkan ini
+        child: Container(
+          margin: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.inbox_outlined, color: Colors.grey[400], size: 48),
+              const SizedBox(height: 16),
+              Text(
+                'Belum Ada Data',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[700],
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[500], fontSize: 14),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey[500], fontSize: 14),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -783,7 +1088,11 @@ String formatRupiah(int amount) {
   return formatter.format(amount);
 }
 
-Future<pw.Document> generateLaporanPDF(List<LaporanHarian> data) async {
+Future<pw.Document> generateLaporanPDF(
+  List<LaporanHarian> data,
+  DateTime? startDate,
+  DateTime? endDate,
+) async {
   // Initialize Indonesian locale for PDF generation
   await initializeDateFormatting('id_ID', null);
 
@@ -812,6 +1121,20 @@ Future<pw.Document> generateLaporanPDF(List<LaporanHarian> data) async {
     (sum, item) => sum + item.keuntunganBersih,
   );
   int grandTotalPenjualan = totalPenjualanOfflineSum + totalPenjualanOnlineSum;
+
+  // Format period for PDF
+  String periodText = '';
+  if (startDate != null && endDate != null) {
+    final DateFormat displayFormatter = DateFormat('dd MMM yyyy', 'id_ID');
+    if (startDate.isAtSameMomentAs(endDate)) {
+      periodText = displayFormatter.format(startDate);
+    } else {
+      periodText =
+          '${displayFormatter.format(startDate)} - ${displayFormatter.format(endDate)}';
+    }
+  } else if (data.isNotEmpty) {
+    periodText = '${data.first.tanggal} - ${data.last.tanggal}';
+  }
 
   pdf.addPage(
     pw.MultiPage(
@@ -844,7 +1167,7 @@ Future<pw.Document> generateLaporanPDF(List<LaporanHarian> data) async {
                       ),
                       pw.SizedBox(height: 4),
                       pw.Text(
-                        'Periode: ${data.isNotEmpty ? data.first.tanggal : ''} - ${data.isNotEmpty ? data.last.tanggal : ''}',
+                        'Periode: $periodText',
                         style: const pw.TextStyle(
                           fontSize: 12,
                           color: PdfColors.white,
