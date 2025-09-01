@@ -1116,14 +1116,17 @@ class _EditProdukPageState extends State<EditProdukPage> {
                         ),
                 title: Row(
                   children: [
-                    Text(
-                      'Warna: ${varian.warna}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w500,
+                    Expanded(
+                      child: Text(
+                        'Warna: ${varian.warna}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis, // biar gak overflow
+                        maxLines: 1,
                       ),
                     ),
-                    // ✅ TAMBAHKAN BADGE UNTUK VARIAN BARU
                     if (!varian.isExisting) ...[
                       const SizedBox(width: 8),
                       Container(
@@ -3242,16 +3245,21 @@ class _DialogEditVarianWithImageState
                   children: [
                     const Icon(Icons.edit, color: Colors.white, size: 24),
                     const SizedBox(width: 12),
-                    Text(
-                      'Edit Varian: ${widget.existingVarian.warna}',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                    Expanded(
+                      child: Text(
+                        'Edit Varian: ${widget.existingVarian.warna}',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
+
                 const SizedBox(height: 20),
 
                 // ✅ TAMBAH SECTION GAMBAR VARIAN

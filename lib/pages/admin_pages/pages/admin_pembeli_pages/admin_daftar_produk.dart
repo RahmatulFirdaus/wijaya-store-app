@@ -19,11 +19,27 @@ class _DaftarProdukPageState extends State<DaftarProdukPage> {
   final TextEditingController _searchController = TextEditingController();
   String searchQuery = "";
 
+  String selectedCategory = "Semua"; // Default semua kategori
+  List<String> categories = ["Semua"]; // List kategori yang tersedia
+
   @override
   void initState() {
     super.initState();
     _productsFuture = GetDataProduk.getDataProduk();
     _searchController.addListener(_onSearchChanged);
+    _loadCategories();
+  }
+
+  void _loadCategories() async {
+    try {
+      final products = await GetDataProduk.getDataProduk();
+      final categorySet = products.map((p) => p.kategori_produk).toSet();
+      setState(() {
+        categories = ["Semua", ...categorySet.toList()];
+      });
+    } catch (e) {
+      print('Error loading categories: $e');
+    }
   }
 
   void _onSearchChanged() {
@@ -41,6 +57,14 @@ class _DaftarProdukPageState extends State<DaftarProdukPage> {
 
   List<GetDataProduk> _filterProducts(List<GetDataProduk> products) {
     List<GetDataProduk> filtered = products;
+
+    // Filter berdasarkan kategori
+    if (selectedCategory != "Semua") {
+      filtered =
+          filtered.where((p) => p.kategori_produk == selectedCategory).toList();
+    }
+
+    // Filter berdasarkan search query
     if (searchQuery.isNotEmpty) {
       filtered =
           filtered
@@ -51,6 +75,7 @@ class _DaftarProdukPageState extends State<DaftarProdukPage> {
               )
               .toList();
     }
+
     return filtered;
   }
 
@@ -109,12 +134,42 @@ class _DaftarProdukPageState extends State<DaftarProdukPage> {
     }
   }
 
-  Future<void> generateAllProductPDF(BuildContext context) async {
+  Future<void> generateAllProductPDF(
+    BuildContext context, {
+    String? kategori,
+  }) async {
     try {
       final pdf = pw.Document();
+
+      // GANTI dengan GetDataProduk untuk mendapatkan kategori
+      final allProducts = await GetDataProduk.getDataProduk();
       final produkList = await Produk.getDataSemuaProduk();
 
-      // Tambahkan halaman ke PDF
+      // FILTER BERDASARKAN KATEGORI menggunakan GetDataProduk
+      List<String> allowedProductNames = [];
+      if (kategori != null && kategori != "Semua") {
+        allowedProductNames =
+            allProducts
+                .where((p) => p.kategori_produk == kategori)
+                .map((p) => p.nama_produk)
+                .toList();
+      }
+
+      // Filter produk detail berdasarkan nama produk yang diizinkan
+      List<Produk> filteredProduk = produkList;
+      if (kategori != null && kategori != "Semua") {
+        filteredProduk =
+            produkList
+                .where((p) => allowedProductNames.contains(p.namaProduk))
+                .toList();
+      }
+
+      // Update title berdasarkan kategori
+      String title =
+          kategori == null || kategori == "Semua"
+              ? 'LAPORAN DATA SEMUA PRODUK'
+              : 'LAPORAN DATA PRODUK - ${kategori.toUpperCase()}';
+
       pdf.addPage(
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
@@ -125,7 +180,7 @@ class _DaftarProdukPageState extends State<DaftarProdukPage> {
             // Header
             content.add(
               pw.Text(
-                'LAPORAN DATA SEMUA PRODUK',
+                title,
                 style: const pw.TextStyle(fontSize: 20),
                 textAlign: pw.TextAlign.center,
               ),
@@ -134,9 +189,9 @@ class _DaftarProdukPageState extends State<DaftarProdukPage> {
             content.add(pw.Divider(thickness: 2));
             content.add(pw.SizedBox(height: 20));
 
-            // Loop untuk setiap produk
-            for (int i = 0; i < produkList.length; i++) {
-              final produk = produkList[i];
+            // Loop untuk setiap produk - GANTI produkList dengan filteredProduk
+            for (int i = 0; i < filteredProduk.length; i++) {
+              final produk = filteredProduk[i];
 
               content.add(
                 pw.Container(
@@ -168,7 +223,7 @@ class _DaftarProdukPageState extends State<DaftarProdukPage> {
               );
               content.add(pw.SizedBox(height: 4));
 
-              // Tabel Varian
+              // Tabel Varian - code tetap sama
               content.add(
                 pw.Table(
                   border: pw.TableBorder.all(color: PdfColors.black, width: 1),
@@ -224,7 +279,7 @@ class _DaftarProdukPageState extends State<DaftarProdukPage> {
               content.add(pw.SizedBox(height: 20));
 
               // Divider antar produk
-              if (i < produkList.length - 1) {
+              if (i < filteredProduk.length - 1) {
                 content.add(pw.Divider());
                 content.add(pw.SizedBox(height: 15));
               }
@@ -292,6 +347,52 @@ class _DaftarProdukPageState extends State<DaftarProdukPage> {
             ),
           ),
 
+          // TAMBAHKAN DROPDOWN KATEGORI DI SINI
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              children: [
+                const Text(
+                  'Kategori: ',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey[300]!),
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.white,
+                    ),
+                    child: DropdownButton<String>(
+                      value: selectedCategory,
+                      isExpanded: true,
+                      underline: const SizedBox(),
+                      hint: const Text('Pilih Kategori'),
+                      items:
+                          categories.map((String category) {
+                            return DropdownMenuItem<String>(
+                              value: category,
+                              child: Text(category),
+                            );
+                          }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          selectedCategory = newValue ?? "Semua";
+                        });
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16), // Spacing
           // Products Section Header
           Padding(
             padding: const EdgeInsets.symmetric(
@@ -331,10 +432,10 @@ class _DaftarProdukPageState extends State<DaftarProdukPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8), // Jarak antar tombol
+                    const SizedBox(width: 8),
                     ElevatedButton.icon(
                       onPressed: () async {
-                        // Show loading indicator
+                        // GUNAKAN selectedCategory yang dipilih dari dropdown
                         showDialog(
                           context: context,
                           barrierDismissible: false,
@@ -352,24 +453,22 @@ class _DaftarProdukPageState extends State<DaftarProdukPage> {
                         );
 
                         try {
-                          // Generate PDF (hanya sekali, bukan dalam loop)
-                          await generateAllProductPDF(context);
-
-                          // Close loading dialog
-                          Navigator.of(context).pop();
-
-                          // Show success message
+                          // Generate PDF dengan kategori yang dipilih dari dropdown
+                          await generateAllProductPDF(
+                            context,
+                            kategori: selectedCategory,
+                          );
+                          Navigator.of(context).pop(); // Close loading
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('PDF berhasil dibuat!'),
+                            SnackBar(
+                              content: Text(
+                                'PDF kategori $selectedCategory berhasil dibuat!',
+                              ),
                               backgroundColor: Colors.green,
                             ),
                           );
                         } catch (e) {
-                          // Close loading dialog
-                          Navigator.of(context).pop();
-
-                          // Show error message
+                          Navigator.of(context).pop(); // Close loading
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('Gagal membuat PDF: $e'),

@@ -1248,12 +1248,14 @@ class Produk {
   final String namaProduk;
   final String deskripsi;
   final String harga;
+  final String kategori; // TAMBAHKAN INI
   final List<VarianKhusus> varian;
 
   Produk({
     required this.namaProduk,
     required this.deskripsi,
     required this.harga,
+    required this.kategori, // TAMBAHKAN INI
     required this.varian,
   });
 
@@ -1262,6 +1264,7 @@ class Produk {
       namaProduk: json['nama_produk'],
       deskripsi: json['deskripsi'],
       harga: json['harga'],
+      kategori: json['kategori'],
       varian:
           (json['varian'] as List)
               .map((v) => VarianKhusus.fromJson(v))
